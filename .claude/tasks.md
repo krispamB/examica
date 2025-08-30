@@ -31,11 +31,11 @@ Examica is a comprehensive examination platform with three user roles (Admin, Ex
 
 ### 1.3 Project Structure
 
-- [ ] Create folder structure (`/app`, `/components`, `/lib`, `/types`, `/hooks`)
-- [ ] Set up routing with Next.js App Router
-- [ ] Configure middleware for authentication
-- [ ] Create base layout components
-- [ ] Set up global styles and theme configuration
+- [x] Create folder structure (`/app`, `/components`, `/lib`, `/types`, `/hooks`)
+- [x] Set up routing with Next.js App Router
+- [x] Configure middleware for authentication
+- [x] Create base layout components
+- [x] Set up global styles and theme configuration
 
 ---
 
