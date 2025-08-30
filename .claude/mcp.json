@@ -1,0 +1,54 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/tasck/Software/examica"
+      ],
+      "env": {},
+      "description": "Filesystem access for the Examica project directory"
+    },
+    "git": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-git",
+        "--repository",
+        "/Users/tasck/Software/examica"
+      ],
+      "env": {},
+      "description": "Git operations for version control"
+    },
+    "web": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "env": {},
+      "description": "Web scraping and API calls for external integrations"
+    },
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--read-only",
+        "--project-ref=${SUPABASE_PROJECT_REF}"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      }
+    }
+  },
+  "projectInfo": {
+    "name": "Examica",
+    "description": "Computer-based test application with facial recognition and AI features",
+    "version": "0.1.0",
+    "stack": [
+      "Next.js",
+      "TypeScript",
+      "Tailwind CSS",
+      "Supabase",
+      "AWS Rekognition"
+    ],
+    "configuredAt": "2025-08-30"
+  }
+}
