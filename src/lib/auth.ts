@@ -6,9 +6,16 @@ export const ROLE_ROUTES: Record<UserRole, string[]> = {
   student: ['/student'],
 }
 
-export const PUBLIC_ROUTES = ['/', '/login', '/register', '/about', '/contact']
+export const PUBLIC_ROUTES = [
+  '/',
+  '/login',
+  '/about',
+  '/contact',
+  '/accept-invitation',
+  '/api',
+]
 
-export const AUTH_ROUTES = ['/login', '/register']
+export const AUTH_ROUTES = ['/login']
 
 export function getDefaultRedirectPath(role: UserRole): string {
   switch (role) {

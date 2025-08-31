@@ -23,6 +23,8 @@ const Button: React.FC<ButtonProps> = ({
       'border-2 border-primary bg-white text-primary hover:bg-primary hover:text-white focus:ring-primary',
     ghost: 'text-primary hover:bg-primary-light focus:ring-primary',
     destructive: 'bg-error text-white hover:bg-error/90 focus:ring-error',
+    logout:
+      'bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-800 border border-red-200 hover:border-red-300 focus:ring-red-500',
   }
 
   const sizeClasses = {

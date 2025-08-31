@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import type { Database } from '@/types/database'
+import type { Database } from '@/types/database.types'
 import type { UserRole } from '@/types/auth'
 import {
   canAccessRoute,
@@ -43,20 +43,22 @@ export const updateSession = async (request: NextRequest) => {
 
   const pathname = request.nextUrl.pathname
 
-  // For now, we'll simulate user role - in real implementation, this would come from the database
-  // TODO: Implement actual role fetching from user profile in database
+  // Fetch user role from user_profiles table
   let userRole: UserRole | null = null
 
   if (user) {
-    // This is a placeholder - in real implementation, fetch from user profile
-    // For now, we'll determine role based on email domain or other logic
-    const email = user.email || ''
-    if (email.includes('admin')) {
-      userRole = 'admin'
-    } else if (email.includes('examiner') || email.includes('staff')) {
-      userRole = 'examiner'
-    } else {
-      userRole = 'student'
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      userRole = profile?.role || null
+    } catch (error) {
+      console.error('Error fetching user role:', error)
+      // If we can't fetch the role, default to null (will redirect to login)
+      userRole = null
     }
   }
 

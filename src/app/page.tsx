@@ -1,23 +1,33 @@
-import { createClient } from '@/lib/supabase/server'
+'use client'
 
-export default async function Home() {
-  const supabase = await createClient()
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-  let connectionStatus = 'Testing connection...'
-  let connectionError = null
+export default function Home() {
+  const [connectionStatus, setConnectionStatus] = useState(
+    'Testing connection...'
+  )
+  const [connectionError, setConnectionError] = useState<string | null>(null)
 
-  try {
-    const { error } = await supabase.auth.getSession()
-    if (error) {
-      connectionError = error.message
-      connectionStatus = 'Connection failed'
-    } else {
-      connectionStatus = 'Connected to Supabase successfully!'
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        const supabase = createClient()
+        const { error } = await supabase.auth.getSession()
+        if (error) {
+          setConnectionError(error.message)
+          setConnectionStatus('Connection failed')
+        } else {
+          setConnectionStatus('Connected to Supabase successfully!')
+        }
+      } catch (err) {
+        setConnectionError(err instanceof Error ? err.message : 'Unknown error')
+        setConnectionStatus('Connection failed')
+      }
     }
-  } catch (err) {
-    connectionError = err instanceof Error ? err.message : 'Unknown error'
-    connectionStatus = 'Connection failed'
-  }
+
+    testConnection()
+  }, [])
 
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
