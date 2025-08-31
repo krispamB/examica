@@ -16,9 +16,9 @@ const Input: React.FC<InputProps> = ({
   return (
     <div className="space-y-1">
       {label && (
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-foreground">
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-error ml-1">*</span>}
         </label>
       )}
       <input
@@ -29,16 +29,16 @@ const Input: React.FC<InputProps> = ({
         disabled={disabled}
         required={required}
         className={cn(
-          'w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-colors duration-200',
+          'w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all duration-200',
           error
-            ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
-            : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500',
-          disabled && 'bg-gray-50 cursor-not-allowed',
+            ? 'border-error/30 focus:border-error focus:ring-error'
+            : 'border-border focus:border-primary focus:ring-primary',
+          disabled && 'bg-background-secondary cursor-not-allowed',
           className
         )}
         {...props}
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-error">{error}</p>}
     </div>
   )
 }
