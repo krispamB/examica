@@ -7,6 +7,7 @@ export interface InviteUserData {
   firstName?: string
   lastName?: string
   institutionId?: string
+  faceImage?: File
 }
 
 export interface InvitationResult {
@@ -48,12 +49,30 @@ export async function inviteUser(
     }
 
     // Call the server-side API route that handles everything
+    // Use FormData if we have a face image, otherwise JSON
+    let body: FormData | string
+    const headers: HeadersInit = {}
+
+    if (userData.faceImage) {
+      const formData = new FormData()
+      formData.append('email', userData.email)
+      formData.append('role', userData.role)
+      if (userData.firstName) formData.append('firstName', userData.firstName)
+      if (userData.lastName) formData.append('lastName', userData.lastName)
+      if (userData.institutionId) formData.append('institutionId', userData.institutionId)
+      formData.append('faceImage', userData.faceImage)
+      
+      body = formData
+      // Don't set Content-Type header - browser will set it with boundary
+    } else {
+      headers['Content-Type'] = 'application/json'
+      body = JSON.stringify(userData)
+    }
+
     const response = await fetch('/api/invite-user', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(userData),
+      headers,
+      body,
     })
 
     const data = await response.json()

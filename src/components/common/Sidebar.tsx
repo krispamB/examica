@@ -21,6 +21,8 @@ const navigationConfig: Record<string, NavigationItem[]> = {
   admin: [
     { name: 'Dashboard', href: '/admin' },
     { name: 'Users', href: '/admin/users' },
+    { name: 'Exams', href: '/admin/exams' },
+    { name: 'Monitor', href: '/admin/monitor' },
     { name: 'Settings', href: '/admin/settings' },
   ],
   student: [

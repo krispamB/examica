@@ -14,6 +14,276 @@ export type Database = {
   }
   public: {
     Tables: {
+      exams: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          status: 'draft' | 'active' | 'archived'
+          duration: number | null
+          requires_verification: boolean | null
+          created_at: string | null
+          updated_at: string | null
+          created_by: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          status?: 'draft' | 'active' | 'archived'
+          duration?: number | null
+          requires_verification?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+          created_by: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          status?: 'draft' | 'active' | 'archived'
+          duration?: number | null
+          requires_verification?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+          created_by?: string
+        }
+        Relationships: []
+      }
+      questions: {
+        Row: {
+          id: string
+          title: string
+          content: string
+          type: 'multiple_choice' | 'true_false' | 'essay' | 'fill_blank' | 'matching'
+          difficulty: 'easy' | 'medium' | 'hard'
+          category: string | null
+          tags: string[] | null
+          options: Json | null
+          correct_answer: Json | null
+          explanation: string | null
+          points: number | null
+          ai_generated: boolean | null
+          ai_metadata: Json | null
+          created_by: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          title: string
+          content: string
+          type: 'multiple_choice' | 'true_false' | 'essay' | 'fill_blank' | 'matching'
+          difficulty?: 'easy' | 'medium' | 'hard'
+          category?: string | null
+          tags?: string[] | null
+          options?: Json | null
+          correct_answer?: Json | null
+          explanation?: string | null
+          points?: number | null
+          ai_generated?: boolean | null
+          ai_metadata?: Json | null
+          created_by: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          title?: string
+          content?: string
+          type?: 'multiple_choice' | 'true_false' | 'essay' | 'fill_blank' | 'matching'
+          difficulty?: 'easy' | 'medium' | 'hard'
+          category?: string | null
+          tags?: string[] | null
+          options?: Json | null
+          correct_answer?: Json | null
+          explanation?: string | null
+          points?: number | null
+          ai_generated?: boolean | null
+          ai_metadata?: Json | null
+          created_by?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      exam_questions: {
+        Row: {
+          id: string
+          exam_id: string
+          question_id: string
+          order_index: number
+          points: number | null
+          required: boolean | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          exam_id: string
+          question_id: string
+          order_index: number
+          points?: number | null
+          required?: boolean | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          exam_id?: string
+          question_id?: string
+          order_index?: number
+          points?: number | null
+          required?: boolean | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      exam_results: {
+        Row: {
+          id: string
+          session_id: string
+          user_id: string
+          exam_id: string
+          total_score: number | null
+          max_score: number | null
+          percentage: number | null
+          status: 'in_progress' | 'completed' | 'graded'
+          started_at: string | null
+          completed_at: string | null
+          graded_at: string | null
+          graded_by: string | null
+          feedback: string | null
+          metadata: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          user_id: string
+          exam_id: string
+          total_score?: number | null
+          max_score?: number | null
+          percentage?: number | null
+          status?: 'in_progress' | 'completed' | 'graded'
+          started_at?: string | null
+          completed_at?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          feedback?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          user_id?: string
+          exam_id?: string
+          total_score?: number | null
+          max_score?: number | null
+          percentage?: number | null
+          status?: 'in_progress' | 'completed' | 'graded'
+          started_at?: string | null
+          completed_at?: string | null
+          graded_at?: string | null
+          graded_by?: string | null
+          feedback?: string | null
+          metadata?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      question_responses: {
+        Row: {
+          id: string
+          session_id: string
+          question_id: string
+          user_id: string
+          response: Json | null
+          is_correct: boolean | null
+          points_earned: number | null
+          time_spent: number | null
+          attempts: number | null
+          flagged: boolean | null
+          flag_reason: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          question_id: string
+          user_id: string
+          response?: Json | null
+          is_correct?: boolean | null
+          points_earned?: number | null
+          time_spent?: number | null
+          attempts?: number | null
+          flagged?: boolean | null
+          flag_reason?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          question_id?: string
+          user_id?: string
+          response?: Json | null
+          is_correct?: boolean | null
+          points_earned?: number | null
+          time_spent?: number | null
+          attempts?: number | null
+          flagged?: boolean | null
+          flag_reason?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      exam_sessions: {
+        Row: {
+          id: string
+          user_id: string
+          exam_id: string
+          status: 'in_progress' | 'completed' | 'abandoned'
+          started_at: string | null
+          completed_at: string | null
+          verification_status: 'verified' | 'unverified' | 'failed' | null
+          verification_time: string | null
+          browser_info: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          exam_id: string
+          status?: 'in_progress' | 'completed' | 'abandoned'
+          started_at?: string | null
+          completed_at?: string | null
+          verification_status?: 'verified' | 'unverified' | 'failed' | null
+          verification_time?: string | null
+          browser_info?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          exam_id?: string
+          status?: 'in_progress' | 'completed' | 'abandoned'
+          started_at?: string | null
+          completed_at?: string | null
+          verification_status?: 'verified' | 'unverified' | 'failed' | null
+          verification_time?: string | null
+          browser_info?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       facial_verifications: {
         Row: {
           aws_face_id: string
@@ -99,6 +369,9 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          email: string | null
+          face_image_url: string | null
+          face_image_uploaded_at: string | null
           first_name: string
           id: string
           institution_id: string | null
@@ -113,6 +386,9 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          email?: string | null
+          face_image_url?: string | null
+          face_image_uploaded_at?: string | null
           first_name: string
           id: string
           institution_id?: string | null
@@ -127,6 +403,9 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          email?: string | null
+          face_image_url?: string | null
+          face_image_uploaded_at?: string | null
           first_name?: string
           id?: string
           institution_id?: string | null

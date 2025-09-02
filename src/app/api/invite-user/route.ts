@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendInvitationEmail } from '@/lib/email/service'
+import { uploadFaceImage } from '@/lib/storage/face-images'
 import { UserRole } from '@/types/auth'
 
 interface InviteUserRequest {
@@ -9,6 +10,7 @@ interface InviteUserRequest {
   firstName?: string
   lastName?: string
   institutionId?: string
+  faceImage?: File
 }
 
 function generateInvitationToken(): string {
@@ -17,7 +19,33 @@ function generateInvitationToken(): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const body: InviteUserRequest = await request.json()
+    // Parse request body - could be JSON or FormData
+    let body: InviteUserRequest
+    const contentType = request.headers.get('content-type') || ''
+    
+    if (contentType.includes('multipart/form-data')) {
+      // Handle FormData (with file upload)
+      const formData = await request.formData()
+      
+      body = {
+        email: formData.get('email') as string,
+        role: formData.get('role') as UserRole,
+        firstName: formData.get('firstName') as string || undefined,
+        lastName: formData.get('lastName') as string || undefined,
+        institutionId: formData.get('institutionId') as string || undefined,
+        faceImage: formData.get('faceImage') as File || undefined,
+      }
+    } else {
+      // Handle JSON (no file upload)
+      const jsonBody = await request.json()
+      body = {
+        email: jsonBody.email,
+        role: jsonBody.role,
+        firstName: jsonBody.firstName,
+        lastName: jsonBody.lastName,
+        institutionId: jsonBody.institutionId,
+      }
+    }
 
     // Validate required fields
     if (!body.email || !body.role) {
@@ -54,6 +82,28 @@ export async function POST(request: NextRequest) {
     // Generate invitation token
     const invitationToken = generateInvitationToken()
 
+    // Handle face image upload if provided (only for students)
+    let faceImageUrl: string | undefined
+    if (body.faceImage && body.role === 'student') {
+      try {
+        // Generate a temporary user ID for the face image storage
+        // We'll update the user profile with this URL after they accept the invitation
+        const tempUserId = `temp-${invitationToken}`
+        
+        const uploadResult = await uploadFaceImage(body.faceImage, tempUserId, true)
+        
+        if (uploadResult.success && uploadResult.url) {
+          faceImageUrl = uploadResult.url
+        } else {
+          console.warn('Face image upload failed:', uploadResult.error)
+          // Don't fail the entire invitation for face image issues
+        }
+      } catch (error) {
+        console.warn('Face image upload error:', error)
+        // Continue without face image
+      }
+    }
+
     // Create invitation record in database
     const { data: invitation, error: dbError } = await supabase
       .from('user_invitations')
@@ -65,6 +115,7 @@ export async function POST(request: NextRequest) {
         user_metadata: {
           first_name: body.firstName,
           last_name: body.lastName,
+          face_image_url: faceImageUrl,
         },
         institution_id: body.institutionId,
         // Expires in 7 days
@@ -91,7 +142,7 @@ export async function POST(request: NextRequest) {
       recipientName: body.firstName
         ? `${body.firstName} ${body.lastName || ''}`.trim()
         : undefined,
-      institutionName: 'Your Institution', // TODO: Get from settings
+      institutionName: process.env.INSTITUTION_NAME || 'Examica Institution'
     })
 
     if (!emailResult.success) {

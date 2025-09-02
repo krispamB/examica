@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button'
 import Card from '@/components/ui/Card'
 import { createClient } from '@/lib/supabase/client'
 import { type BaseComponentProps } from '@/types/ui'
+import { X, Edit, Save, XCircle } from 'lucide-react'
 
 interface User {
   id: string
@@ -27,6 +28,10 @@ const UsersList: React.FC<UsersListProps> = ({ className, ...props }) => {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editForm, setEditForm] = useState({ first_name: '', last_name: '', role: '' })
+  const [updating, setUpdating] = useState(false)
 
   useEffect(() => {
     loadUsers()
@@ -77,6 +82,72 @@ const UsersList: React.FC<UsersListProps> = ({ className, ...props }) => {
         return 'bg-primary-light text-primary border-primary/20'
       default:
         return 'bg-secondary-light text-secondary border-secondary/20'
+    }
+  }
+
+  const openUserDetails = (user: User) => {
+    setSelectedUser(user)
+    setEditForm({
+      first_name: user.first_name,
+      last_name: user.last_name,
+      role: user.role
+    })
+    setIsEditMode(false)
+  }
+
+  const closeUserDetails = () => {
+    setSelectedUser(null)
+    setIsEditMode(false)
+    setEditForm({ first_name: '', last_name: '', role: '' })
+  }
+
+  const handleEdit = () => {
+    setIsEditMode(true)
+  }
+
+  const handleCancelEdit = () => {
+    if (selectedUser) {
+      setEditForm({
+        first_name: selectedUser.first_name,
+        last_name: selectedUser.last_name,
+        role: selectedUser.role
+      })
+    }
+    setIsEditMode(false)
+  }
+
+  const handleSave = async () => {
+    if (!selectedUser) return
+
+    setUpdating(true)
+    const supabase = createClient()
+
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          first_name: editForm.first_name,
+          last_name: editForm.last_name,
+          role: editForm.role
+        })
+        .eq('id', selectedUser.id)
+
+      if (error) throw error
+
+      // Update local state
+      setUsers(users.map(user => 
+        user.id === selectedUser.id 
+          ? { ...user, ...editForm }
+          : user
+      ))
+      
+      setSelectedUser({ ...selectedUser, ...editForm })
+      setIsEditMode(false)
+    } catch (err) {
+      console.error('Update user error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update user')
+    } finally {
+      setUpdating(false)
     }
   }
 
@@ -168,10 +239,7 @@ const UsersList: React.FC<UsersListProps> = ({ className, ...props }) => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        // TODO: Implement user details/edit functionality
-                        console.log('View user details:', user.id)
-                      }}
+                      onClick={() => openUserDetails(user)}
                     >
                       View Details
                     </Button>
@@ -179,6 +247,175 @@ const UsersList: React.FC<UsersListProps> = ({ className, ...props }) => {
                 </div>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* User Details Modal */}
+        {selectedUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-background rounded-lg shadow-lg max-w-md w-full mx-4 max-h-[90vh] overflow-auto">
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <h3 className="text-lg font-semibold text-foreground">
+                  {isEditMode ? 'Edit User' : 'User Details'}
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeUserDetails}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    First Name
+                  </label>
+                  {isEditMode ? (
+                    <input
+                      type="text"
+                      value={editForm.first_name}
+                      onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Enter first name"
+                    />
+                  ) : (
+                    <p className="text-foreground">{selectedUser.first_name || 'Not provided'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Last Name
+                  </label>
+                  {isEditMode ? (
+                    <input
+                      type="text"
+                      value={editForm.last_name}
+                      onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Enter last name"
+                    />
+                  ) : (
+                    <p className="text-foreground">{selectedUser.last_name || 'Not provided'}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Role
+                  </label>
+                  {isEditMode ? (
+                    <select
+                      value={editForm.role}
+                      onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <option value="student">Student</option>
+                      <option value="examiner">Examiner</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`
+                          inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize
+                          ${getRoleBadgeColor(selectedUser.role)}
+                        `}
+                      >
+                        {selectedUser.role}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    User ID
+                  </label>
+                  <p className="text-secondary text-sm font-mono">{selectedUser.id}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Created
+                  </label>
+                  <p className="text-secondary">
+                    {selectedUser.created_at
+                      ? new Date(selectedUser.created_at).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'Unknown'}
+                  </p>
+                </div>
+
+                {selectedUser.invitation_accepted_at && (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Invitation Accepted
+                    </label>
+                    <p className="text-secondary">
+                      {new Date(selectedUser.invitation_accepted_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                )}
+
+                {selectedUser.auth_user?.email && (
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">
+                      Email
+                    </label>
+                    <p className="text-secondary">{selectedUser.auth_user.email}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 p-4 border-t border-border">
+                {isEditMode ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={handleCancelEdit}
+                      disabled={updating}
+                    >
+                      <XCircle className="w-4 h-4 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSave}
+                      disabled={updating}
+                    >
+                      <Save className="w-4 h-4 mr-1" />
+                      {updating ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={closeUserDetails}
+                    >
+                      Close
+                    </Button>
+                    <Button onClick={handleEdit}>
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit User
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>

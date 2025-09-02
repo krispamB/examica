@@ -1,0 +1,548 @@
+'use client'
+
+import React, { useState, useEffect, useRef } from 'react'
+import { Clock, AlertTriangle, CheckCircle, Pause, Play, Send, ArrowLeft, ArrowRight } from 'lucide-react'
+import Button from '@/components/ui/Button'
+import type { ExamSessionWithDetails, SubmitResponseRequest } from '@/lib/exam-sessions/service'
+
+interface ExamSessionProps {
+  sessionId: string
+  onSessionComplete: () => void
+  onSessionError: (error: string) => void
+}
+
+interface SessionProgress {
+  totalQuestions: number
+  answeredQuestions: number
+  timeElapsed: number
+  timeRemaining: number | null
+  completionPercentage: number
+}
+
+const ExamSession: React.FC<ExamSessionProps> = ({
+  sessionId,
+  onSessionComplete,
+  onSessionError
+}) => {
+  const [session, setSession] = useState<ExamSessionWithDetails | null>(null)
+  const [progress, setProgress] = useState<SessionProgress | null>(null)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [responses, setResponses] = useState<Record<string, any>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Load session data
+  useEffect(() => {
+    loadSession()
+    startProgressUpdates()
+    
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current)
+    }
+  }, [sessionId])
+
+  const loadSession = async () => {
+    try {
+      const response = await fetch(`/api/exam-sessions/${sessionId}`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load session')
+      }
+
+      setSession(data.session)
+      
+      // Load existing responses
+      const existingResponses: Record<string, any> = {}
+      data.session.question_responses?.forEach((resp: any) => {
+        existingResponses[resp.question_id] = resp.response
+      })
+      setResponses(existingResponses)
+
+      setIsPaused(data.session.status === 'paused')
+    } catch (err) {
+      console.error('Load session error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load session')
+      onSessionError(err instanceof Error ? err.message : 'Failed to load session')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadProgress = async () => {
+    try {
+      const response = await fetch(`/api/exam-sessions/${sessionId}/progress`)
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setProgress(data.progress)
+        setTimeLeft(data.progress.timeRemaining)
+      }
+    } catch (err) {
+      console.error('Load progress error:', err)
+    }
+  }
+
+  const startProgressUpdates = () => {
+    loadProgress()
+    progressIntervalRef.current = setInterval(loadProgress, 5000) // Update every 5 seconds
+  }
+
+  const startTimer = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev === null) return null
+        if (prev <= 0) {
+          handleTimeUp()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  useEffect(() => {
+    if (!isPaused && timeLeft !== null && session?.status === 'active') {
+      startTimer()
+    } else {
+      stopTimer()
+    }
+
+    return stopTimer
+  }, [isPaused, timeLeft, session?.status])
+
+  const handleTimeUp = async () => {
+    stopTimer()
+    try {
+      await handleCompleteSession()
+    } catch (err) {
+      console.error('Auto-complete session error:', err)
+    }
+  }
+
+  const handleResponseChange = (questionId: string, response: any) => {
+    setResponses(prev => ({
+      ...prev,
+      [questionId]: response
+    }))
+  }
+
+  const submitResponse = async (questionId: string, response: any) => {
+    if (isSubmitting) return
+
+    setIsSubmitting(true)
+    try {
+      const submitRequest: SubmitResponseRequest = {
+        sessionId,
+        questionId,
+        response,
+      }
+
+      const apiResponse = await fetch(`/api/exam-sessions/${sessionId}/responses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submitRequest),
+      })
+
+      const data = await apiResponse.json()
+
+      if (!apiResponse.ok) {
+        throw new Error(data.error || 'Failed to submit response')
+      }
+
+      // Refresh progress
+      loadProgress()
+    } catch (err) {
+      console.error('Submit response error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to submit response')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handlePauseResume = async () => {
+    try {
+      const action = isPaused ? 'resume' : 'pause'
+      
+      const response = await fetch(`/api/exam-sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || `Failed to ${action} session`)
+      }
+
+      setIsPaused(!isPaused)
+      if (isPaused) {
+        startTimer()
+      } else {
+        stopTimer()
+      }
+    } catch (err) {
+      console.error('Pause/Resume error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update session')
+    }
+  }
+
+  const handleCompleteSession = async () => {
+    try {
+      const response = await fetch(`/api/exam-sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'complete' }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to complete session')
+      }
+
+      onSessionComplete()
+    } catch (err) {
+      console.error('Complete session error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to complete session')
+    }
+  }
+
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const renderQuestionInput = (question: any) => {
+    const questionId = question.id
+    const currentResponse = responses[questionId] || ''
+
+    switch (question.type) {
+      case 'multiple_choice':
+        return (
+          <div className="space-y-3">
+            {question.options?.map((option: string, index: number) => (
+              <label key={index} className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name={questionId}
+                  value={option}
+                  checked={currentResponse === option}
+                  onChange={(e) => {
+                    handleResponseChange(questionId, e.target.value)
+                    submitResponse(questionId, e.target.value)
+                  }}
+                  className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
+                />
+                <span className="text-foreground">{option}</span>
+              </label>
+            ))}
+          </div>
+        )
+
+      case 'true_false':
+        return (
+          <div className="space-y-3">
+            {['True', 'False'].map((option) => (
+              <label key={option} className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name={questionId}
+                  value={option.toLowerCase()}
+                  checked={currentResponse === option.toLowerCase()}
+                  onChange={(e) => {
+                    handleResponseChange(questionId, e.target.value)
+                    submitResponse(questionId, e.target.value)
+                  }}
+                  className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
+                />
+                <span className="text-foreground">{option}</span>
+              </label>
+            ))}
+          </div>
+        )
+
+      case 'essay':
+        return (
+          <div className="space-y-3">
+            <textarea
+              value={currentResponse}
+              onChange={(e) => handleResponseChange(questionId, e.target.value)}
+              onBlur={() => submitResponse(questionId, currentResponse)}
+              placeholder="Enter your essay response here..."
+              rows={8}
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-vertical"
+            />
+            <Button
+              onClick={() => submitResponse(questionId, currentResponse)}
+              disabled={isSubmitting}
+              size="sm"
+              className="ml-auto"
+            >
+              <Send className="w-4 h-4 mr-1" />
+              Save Response
+            </Button>
+          </div>
+        )
+
+      case 'fill_blank':
+        return (
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={currentResponse}
+              onChange={(e) => handleResponseChange(questionId, e.target.value)}
+              onBlur={() => submitResponse(questionId, currentResponse)}
+              placeholder="Enter your answer here..."
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+            />
+            <Button
+              onClick={() => submitResponse(questionId, currentResponse)}
+              disabled={isSubmitting}
+              size="sm"
+              className="ml-auto"
+            >
+              <Send className="w-4 h-4 mr-1" />
+              Save Response
+            </Button>
+          </div>
+        )
+
+      default:
+        return (
+          <div className="space-y-3">
+            <textarea
+              value={currentResponse}
+              onChange={(e) => handleResponseChange(questionId, e.target.value)}
+              onBlur={() => submitResponse(questionId, currentResponse)}
+              placeholder="Enter your response here..."
+              rows={4}
+              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-vertical"
+            />
+            <Button
+              onClick={() => submitResponse(questionId, currentResponse)}
+              disabled={isSubmitting}
+              size="sm"
+              className="ml-auto"
+            >
+              <Send className="w-4 h-4 mr-1" />
+              Save Response
+            </Button>
+          </div>
+        )
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error || !session) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-12 h-12 text-error mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-foreground mb-2">Session Error</h3>
+        <p className="text-secondary mb-6">{error || 'Session not found'}</p>
+        <Button onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
+
+  const questions = session.exams.exam_questions || []
+  const currentQuestion = questions[currentQuestionIndex]
+
+  if (!currentQuestion) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-12 h-12 text-error mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-foreground mb-2">No Questions Available</h3>
+        <p className="text-secondary">This exam has no questions.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      {/* Header */}
+      <div className="bg-background-secondary rounded-lg p-6 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">{session.exams.title}</h1>
+            <p className="text-secondary">Question {currentQuestionIndex + 1} of {questions.length}</p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {/* Timer */}
+            {timeLeft !== null && (
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${
+                timeLeft < 300 ? 'bg-error-light text-error' : 'bg-background text-foreground'
+              }`}>
+                <Clock className="w-4 h-4" />
+                <span className="font-mono text-sm">{formatTime(timeLeft)}</span>
+              </div>
+            )}
+
+            {/* Pause/Resume */}
+            <Button
+              onClick={handlePauseResume}
+              variant="ghost"
+              size="sm"
+            >
+              {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+              {isPaused ? 'Resume' : 'Pause'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Progress */}
+        {progress && (
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm text-secondary">
+              <span>Progress: {progress.completionPercentage}%</span>
+              <span>{progress.answeredQuestions} of {progress.totalQuestions} answered</span>
+            </div>
+            <div className="w-full bg-background-tertiary rounded-full h-2">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress.completionPercentage}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Question */}
+      <div className="bg-background rounded-lg border border-border p-6 mb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-secondary">
+                {currentQuestion.questions.type.replace('_', ' ').toUpperCase()}
+              </span>
+              {currentQuestion.points && (
+                <span className="text-sm text-secondary">
+                  ({currentQuestion.points} points)
+                </span>
+              )}
+              {currentQuestion.required && (
+                <span className="text-xs bg-error-light text-error px-2 py-1 rounded">
+                  Required
+                </span>
+              )}
+            </div>
+            <h2 className="text-lg font-medium text-foreground mb-4">
+              {currentQuestion.questions.title}
+            </h2>
+            {currentQuestion.questions.content && (
+              <div 
+                className="prose text-foreground mb-6"
+                dangerouslySetInnerHTML={{ __html: currentQuestion.questions.content }}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* Response Input */}
+        <div className="space-y-4">
+          {renderQuestionInput(currentQuestion.questions)}
+          
+          {/* Response Status */}
+          {responses[currentQuestion.questions.id] && (
+            <div className="flex items-center gap-2 text-sm text-success">
+              <CheckCircle className="w-4 h-4" />
+              <span>Response saved</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between">
+        <Button
+          onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+          disabled={currentQuestionIndex === 0}
+          variant="ghost"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Previous
+        </Button>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-secondary">
+            Question {currentQuestionIndex + 1} of {questions.length}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {currentQuestionIndex < questions.length - 1 ? (
+            <Button
+              onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+            >
+              Next
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleCompleteSession}
+              variant="primary"
+            >
+              Complete Exam
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Pause Overlay */}
+      {isPaused && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-lg p-8 text-center">
+            <Pause className="w-12 h-12 text-warning mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">Exam Paused</h3>
+            <p className="text-secondary mb-6">Click Resume to continue your exam</p>
+            <Button onClick={handlePauseResume}>
+              <Play className="w-4 h-4 mr-1" />
+              Resume Exam
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default ExamSession

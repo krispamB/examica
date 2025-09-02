@@ -98,20 +98,34 @@ const InvitationAcceptanceForm: React.FC<InvitationAcceptanceFormProps> = ({
     setLoading(true)
 
     try {
-      // Create the user account
+      // Create the user account with email confirmation
       const { error: signUpError } = await supabase.auth.signUp({
         email: invitation.email,
         password: password,
         options: {
+          emailRedirectTo: undefined, // Disable email confirmation
           data: {
             first_name: firstName,
             last_name: lastName,
             role: invitation.role,
             invited_by: invitation.invited_by,
             invitation_id: invitation.id,
+            email_confirmed: true, // Mark email as confirmed since they have invitation
           },
         },
       })
+
+      // Since we can't directly confirm email via signUp, we need to do it separately
+      if (!signUpError) {
+        // Get the user that was just created and confirm their email
+        const { data: userData } = await supabase.auth.getUser()
+        if (userData.user) {
+          // Use admin function to confirm email
+          await supabase.rpc('admin_confirm_user_email', {
+            user_id: userData.user.id
+          })
+        }
+      }
 
       if (signUpError) throw signUpError
 

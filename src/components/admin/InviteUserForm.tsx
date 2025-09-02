@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import FaceImageUpload from '@/components/common/FaceImageUpload'
 import { inviteUser } from '@/lib/invitations'
 import { type BaseComponentProps } from '@/types/ui'
 import { UserRole } from '@/types/auth'
@@ -20,6 +21,7 @@ const InviteUserForm: React.FC<InviteUserFormProps> = ({
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [role, setRole] = useState<UserRole>('student')
+  const [faceImage, setFaceImage] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -36,6 +38,7 @@ const InviteUserForm: React.FC<InviteUserFormProps> = ({
         role,
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
+        faceImage: faceImage || undefined,
       })
 
       if (!result.success) {
@@ -49,6 +52,7 @@ const InviteUserForm: React.FC<InviteUserFormProps> = ({
       setFirstName('')
       setLastName('')
       setRole('student')
+      setFaceImage(null)
 
       // Call success callback after a short delay
       setTimeout(() => {
@@ -123,6 +127,15 @@ const InviteUserForm: React.FC<InviteUserFormProps> = ({
             <option value="admin">Administrator</option>
           </select>
         </div>
+
+        {/* Face Image Upload - only show for students */}
+        {role === 'student' && (
+          <FaceImageUpload
+            onImageSelect={setFaceImage}
+            selectedImage={faceImage}
+            disabled={loading}
+          />
+        )}
 
         <div className="bg-warning-light border border-warning/20 text-warning px-4 py-3 rounded-md text-sm">
           <p className="font-medium">Note:</p>
