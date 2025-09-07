@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useRef, useState, useCallback, useEffect } from 'react'
+import Image from 'next/image'
 import { Camera, RotateCcw, CheckCircle, X } from 'lucide-react'
 
 interface FaceCameraCaptureProps {
@@ -14,7 +15,7 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
   onCapture,
   onCancel,
   isLoading = false,
-  className = ''
+  className = '',
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -33,9 +34,9 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
-          facingMode: 'user'
+          facingMode: 'user',
         },
-        audio: false
+        audio: false,
       })
 
       if (videoRef.current) {
@@ -47,7 +48,9 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
       console.error('Camera access error:', err)
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
-          setError('Camera access denied. Please allow camera access and try again.')
+          setError(
+            'Camera access denied. Please allow camera access and try again.'
+          )
         } else if (err.name === 'NotFoundError') {
           setError('No camera found. Please connect a camera and try again.')
         } else {
@@ -62,32 +65,11 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
   // Stop camera stream
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
     setIsCameraActive(false)
   }, [])
-
-  // Capture image with countdown
-  const captureWithCountdown = useCallback(() => {
-    if (!isCameraActive || countdown !== null) return
-
-    let count = 3
-    setCountdown(count)
-
-    const countdownInterval = setInterval(() => {
-      count--
-      setCountdown(count)
-      
-      if (count === 0) {
-        clearInterval(countdownInterval)
-        setTimeout(() => {
-          captureImage()
-          setCountdown(null)
-        }, 200)
-      }
-    }, 1000)
-  }, [isCameraActive, countdown])
 
   // Capture the actual image
   const captureImage = useCallback(() => {
@@ -107,12 +89,32 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     // Convert to base64
-    const imageBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1]
     const previewUrl = canvas.toDataURL('image/jpeg', 0.8)
-    
+
     setCapturedImage(previewUrl)
     stopCamera()
   }, [stopCamera])
+
+  // Capture image with countdown
+  const captureWithCountdown = useCallback(() => {
+    if (!isCameraActive || countdown !== null) return
+
+    let count = 3
+    setCountdown(count)
+
+    const countdownInterval = setInterval(() => {
+      count--
+      setCountdown(count)
+
+      if (count === 0) {
+        clearInterval(countdownInterval)
+        setTimeout(() => {
+          captureImage()
+          setCountdown(null)
+        }, 200)
+      }
+    }, 1000)
+  }, [isCameraActive, countdown, captureImage])
 
   // Retry capture (restart camera)
   const retryCapture = useCallback(() => {
@@ -124,7 +126,7 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
   // Confirm and submit captured image
   const confirmCapture = useCallback(() => {
     if (!capturedImage) return
-    
+
     // Extract base64 data
     const base64Data = capturedImage.split(',')[1]
     onCapture(base64Data)
@@ -152,12 +154,16 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
 
   if (error) {
     return (
-      <div className={`bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto ${className}`}>
+      <div
+        className={`bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto ${className}`}
+      >
         <div className="text-center">
           <div className="bg-red-50 rounded-full p-3 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
             <X className="w-8 h-8 text-red-500" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Camera Error</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Camera Error
+          </h3>
           <p className="text-gray-600 mb-4">{error}</p>
           <div className="flex gap-3 justify-center">
             <button
@@ -182,18 +188,25 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
 
   if (capturedImage) {
     return (
-      <div className={`bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto ${className}`}>
+      <div
+        className={`bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto ${className}`}
+      >
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Review Your Photo</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Review Your Photo
+          </h3>
           <div className="mb-4 relative">
-            <img
+            <Image
               src={capturedImage}
               alt="Captured face"
+              width={400}
+              height={256}
               className="w-full h-64 object-cover rounded-lg border-2 border-gray-200"
             />
           </div>
           <p className="text-gray-600 mb-6">
-            Please review your photo. Make sure your face is clearly visible and well-lit.
+            Please review your photo. Make sure your face is clearly visible and
+            well-lit.
           </p>
           <div className="flex gap-3 justify-center">
             <button
@@ -228,10 +241,14 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
   }
 
   return (
-    <div className={`bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto ${className}`}>
+    <div
+      className={`bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto ${className}`}
+    >
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Face Verification</h3>
-        
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Face Verification
+        </h3>
+
         <div className="mb-4 relative">
           <video
             ref={videoRef}
@@ -241,19 +258,22 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
             className="w-full h-64 object-cover rounded-lg border-2 border-gray-200 bg-gray-100"
           />
           <canvas ref={canvasRef} className="hidden" />
-          
+
           {countdown !== null && countdown > 0 && (
             <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
               <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center">
-                <span className="text-2xl font-bold text-gray-900">{countdown}</span>
+                <span className="text-2xl font-bold text-gray-900">
+                  {countdown}
+                </span>
               </div>
             </div>
           )}
         </div>
 
         <p className="text-gray-600 mb-6">
-          Position your face in the camera frame and click capture when ready. 
-          Make sure you&apos;re in good lighting and looking directly at the camera.
+          Position your face in the camera frame and click capture when ready.
+          Make sure you&apos;re in good lighting and looking directly at the
+          camera.
         </p>
 
         <div className="flex gap-3 justify-center">
@@ -278,10 +298,15 @@ export const FaceCameraCapture: React.FC<FaceCameraCaptureProps> = ({
 
         <div className="mt-4 text-sm text-gray-500">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <div className={`w-2 h-2 rounded-full ${isCameraActive ? 'bg-green-500' : 'bg-red-500'}`} />
+            <div
+              className={`w-2 h-2 rounded-full ${isCameraActive ? 'bg-green-500' : 'bg-red-500'}`}
+            />
             <span>{isCameraActive ? 'Camera Active' : 'Camera Inactive'}</span>
           </div>
-          <p>Your image will be compared with your registered photo for verification.</p>
+          <p>
+            Your image will be compared with your registered photo for
+            verification.
+          </p>
         </div>
       </div>
     </div>

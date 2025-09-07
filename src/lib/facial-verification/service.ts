@@ -72,7 +72,8 @@ export class FacialVerificationService {
           success: false,
           similarity: 0,
           confidence: 0,
-          message: 'No reference face image found. Please contact your administrator.',
+          message:
+            'No reference face image found. Please contact your administrator.',
           shouldFlag: false,
         }
       }
@@ -87,7 +88,8 @@ export class FacialVerificationService {
           success: false,
           similarity: 0,
           confidence: 0,
-          message: 'Failed to load reference image. Please contact your administrator.',
+          message:
+            'Failed to load reference image. Please contact your administrator.',
           shouldFlag: true,
         }
       }
@@ -121,7 +123,8 @@ export class FacialVerificationService {
         if (comparisonResult.similarity > 60) {
           message = `Identity verification failed. Similarity: ${comparisonResult.similarity.toFixed(1)}% (threshold: 80%)`
         } else if (comparisonResult.error?.includes('No face detected')) {
-          message = 'No face detected in the image. Please ensure your face is clearly visible and try again.'
+          message =
+            'No face detected in the image. Please ensure your face is clearly visible and try again.'
           shouldFlag = false // Don't flag technical issues
         } else {
           message = comparisonResult.error || 'Identity verification failed'
@@ -138,9 +141,10 @@ export class FacialVerificationService {
       }
     } catch (error) {
       console.error('Facial verification error:', error)
-      
+
       // Log the failed attempt
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error'
       const attemptData: Omit<VerificationAttempt, 'attemptId'> = {
         userId,
         success: false,
@@ -156,7 +160,8 @@ export class FacialVerificationService {
         success: false,
         similarity: 0,
         confidence: 0,
-        message: 'Verification service error. Please try again or contact support.',
+        message:
+          'Verification service error. Please try again or contact support.',
         shouldFlag: true,
       }
     }
@@ -189,7 +194,8 @@ export class FacialVerificationService {
 
       if (existingRecord) {
         // Update existing record with new attempt
-        const existingAttempts = (existingRecord.verification_attempts as any[]) || []
+        const existingAttempts =
+          (existingRecord.verification_attempts as VerificationAttempt[]) || []
         const updatedAttempts = [...existingAttempts, attemptRecord]
 
         await supabase
@@ -241,10 +247,12 @@ export class FacialVerificationService {
         return []
       }
 
-      return (record.verification_attempts as any[]).map(attempt => ({
-        ...attempt,
-        userId,
-      }))
+      return (record.verification_attempts as VerificationAttempt[]).map(
+        (attempt) => ({
+          ...attempt,
+          userId,
+        })
+      )
     } catch (error) {
       console.error('Failed to get verification history:', error)
       return []
@@ -254,30 +262,39 @@ export class FacialVerificationService {
   /**
    * Get flagged verification attempts for admin review
    */
-  async getFlaggedVerifications(): Promise<Array<VerificationAttempt & { userName: string }>> {
+  async getFlaggedVerifications(): Promise<
+    Array<VerificationAttempt & { userName: string }>
+  > {
     try {
       const supabase = await this.getSupabaseClient()
 
       const { data: records } = await supabase
         .from('facial_verifications')
-        .select(`
+        .select(
+          `
           user_id,
           verification_attempts,
           user_profiles!inner(first_name, last_name)
-        `)
+        `
+        )
         .eq('is_active', true)
 
       if (!records) return []
 
-      const flaggedAttempts: Array<VerificationAttempt & { userName: string }> = []
+      const flaggedAttempts: Array<VerificationAttempt & { userName: string }> =
+        []
 
-      records.forEach(record => {
-        const attempts = (record.verification_attempts as any[]) || []
-        const profile = record.user_profiles as any
-        
+      records.forEach((record) => {
+        const attempts =
+          (record.verification_attempts as VerificationAttempt[]) || []
+        const profile = record.user_profiles as {
+          first_name?: string
+          last_name?: string
+        }
+
         attempts
-          .filter(attempt => !attempt.success && attempt.similarity > 0) // Flagged attempts
-          .forEach(attempt => {
+          .filter((attempt) => !attempt.success && attempt.similarity > 0) // Flagged attempts
+          .forEach((attempt) => {
             flaggedAttempts.push({
               ...attempt,
               userId: record.user_id,
@@ -287,8 +304,9 @@ export class FacialVerificationService {
       })
 
       // Sort by timestamp (most recent first)
-      return flaggedAttempts.sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      return flaggedAttempts.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       )
     } catch (error) {
       console.error('Failed to get flagged verifications:', error)
@@ -309,6 +327,8 @@ export class FacialVerificationService {
 }
 
 // Factory function to create service instance
-export function createFacialVerificationService(useServerClient = true): FacialVerificationService {
+export function createFacialVerificationService(
+  useServerClient = true
+): FacialVerificationService {
   return new FacialVerificationService(useServerClient)
 }

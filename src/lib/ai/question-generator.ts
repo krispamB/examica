@@ -1,7 +1,23 @@
 import { getEnvironmentConfig } from '@/lib/config/validation'
 
-export type QuestionType = 'multiple_choice' | 'true_false' | 'essay' | 'fill_blank' | 'matching'
+export type QuestionType =
+  | 'multiple_choice'
+  | 'true_false'
+  | 'essay'
+  | 'fill_blank'
+  | 'matching'
 export type QuestionDifficulty = 'easy' | 'medium' | 'hard'
+
+interface ParsedQuestionFromAI {
+  title?: string
+  content: string
+  options?: string[]
+  correct_answer: string | number | boolean | string[]
+  explanation?: string
+  points?: number
+  category?: string
+  tags?: string[]
+}
 
 export interface QuestionGenerationRequest {
   topic: string
@@ -19,7 +35,7 @@ export interface GeneratedQuestion {
   type: QuestionType
   difficulty: QuestionDifficulty
   options?: string[] // For multiple choice
-  correct_answer: any
+  correct_answer: string | number | boolean | string[]
   explanation: string
   points: number
   category?: string
@@ -46,18 +62,24 @@ export interface QuestionGenerationResult {
 class AIQuestionGenerator {
   private config = getEnvironmentConfig()
 
-  async generateQuestions(request: QuestionGenerationRequest): Promise<QuestionGenerationResult> {
+  async generateQuestions(
+    request: QuestionGenerationRequest
+  ): Promise<QuestionGenerationResult> {
     const startTime = Date.now()
-    
+
     try {
       // Determine which AI service to use
-      const useAnthropic = this.config.ANTHROPIC_API_KEY && 
-                          !this.config.ANTHROPIC_API_KEY.includes('your_')
-      const useOpenAI = this.config.OPENAI_API_KEY && 
-                       !this.config.OPENAI_API_KEY.includes('your_')
+      const useAnthropic =
+        this.config.ANTHROPIC_API_KEY &&
+        !this.config.ANTHROPIC_API_KEY.includes('your_')
+      const useOpenAI =
+        this.config.OPENAI_API_KEY &&
+        !this.config.OPENAI_API_KEY.includes('your_')
 
       if (!useAnthropic && !useOpenAI) {
-        throw new Error('No AI service configured. Please set ANTHROPIC_API_KEY or OPENAI_API_KEY')
+        throw new Error(
+          'No AI service configured. Please set ANTHROPIC_API_KEY or OPENAI_API_KEY'
+        )
       }
 
       let result: QuestionGenerationResult
@@ -70,7 +92,6 @@ class AIQuestionGenerator {
 
       result.metadata.generation_time = Date.now() - startTime
       return result
-
     } catch (error) {
       return {
         success: false,
@@ -78,21 +99,23 @@ class AIQuestionGenerator {
         error: error instanceof Error ? error.message : 'Unknown error',
         metadata: {
           model_used: 'none',
-          generation_time: Date.now() - startTime
-        }
+          generation_time: Date.now() - startTime,
+        },
       }
     }
   }
 
-  private async generateWithAnthropic(request: QuestionGenerationRequest): Promise<QuestionGenerationResult> {
+  private async generateWithAnthropic(
+    request: QuestionGenerationRequest
+  ): Promise<QuestionGenerationResult> {
     const prompt = this.buildPrompt(request)
-    
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': this.config.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: 'claude-3-sonnet-20240229',
@@ -100,10 +123,10 @@ class AIQuestionGenerator {
         messages: [
           {
             role: 'user',
-            content: prompt
-          }
-        ]
-      })
+            content: prompt,
+          },
+        ],
+      }),
     })
 
     if (!response.ok) {
@@ -113,12 +136,12 @@ class AIQuestionGenerator {
 
     const data = await response.json()
     const content = data.content[0]?.text || ''
-    
+
     const questions = this.parseQuestionsFromResponse(content, request, {
       model: 'claude-3-sonnet',
       prompt,
       generated_at: new Date().toISOString(),
-      tokens_used: data.usage?.output_tokens
+      tokens_used: data.usage?.output_tokens,
     })
 
     return {
@@ -127,31 +150,33 @@ class AIQuestionGenerator {
       metadata: {
         model_used: 'claude-3-sonnet',
         total_tokens: data.usage?.input_tokens + data.usage?.output_tokens,
-        generation_time: 0 // Will be set by caller
-      }
+        generation_time: 0, // Will be set by caller
+      },
     }
   }
 
-  private async generateWithOpenAI(request: QuestionGenerationRequest): Promise<QuestionGenerationResult> {
+  private async generateWithOpenAI(
+    request: QuestionGenerationRequest
+  ): Promise<QuestionGenerationResult> {
     const prompt = this.buildPrompt(request)
-    
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.config.OPENAI_API_KEY}`
+        Authorization: `Bearer ${this.config.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
         model: 'gpt-3.5-turbo',
         messages: [
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         max_tokens: 2000,
-        temperature: 0.7
-      })
+        temperature: 0.7,
+      }),
     })
 
     if (!response.ok) {
@@ -161,12 +186,12 @@ class AIQuestionGenerator {
 
     const data = await response.json()
     const content = data.choices[0]?.message?.content || ''
-    
+
     const questions = this.parseQuestionsFromResponse(content, request, {
       model: 'gpt-3.5-turbo',
       prompt,
       generated_at: new Date().toISOString(),
-      tokens_used: data.usage?.completion_tokens
+      tokens_used: data.usage?.completion_tokens,
     })
 
     return {
@@ -175,21 +200,23 @@ class AIQuestionGenerator {
       metadata: {
         model_used: 'gpt-3.5-turbo',
         total_tokens: data.usage?.total_tokens,
-        generation_time: 0 // Will be set by caller
-      }
+        generation_time: 0, // Will be set by caller
+      },
     }
   }
 
   private buildPrompt(request: QuestionGenerationRequest): string {
     const count = request.count || 1
-    const questionTypeInstructions = this.getQuestionTypeInstructions(request.type)
-    
+    const questionTypeInstructions = this.getQuestionTypeInstructions(
+      request.type
+    )
+
     let prompt = `Generate ${count} high-quality ${request.type.replace('_', ' ')} question(s) for the topic: "${request.topic}"`
-    
+
     if (request.subject) {
       prompt += ` in the subject of ${request.subject}`
     }
-    
+
     prompt += `
 
 REQUIREMENTS:
@@ -280,11 +307,17 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
     }
   }
 
-  private parseQuestionsFromResponse(content: string, request: QuestionGenerationRequest, aiMetadata: any): GeneratedQuestion[] {
+  private parseQuestionsFromResponse(
+    content: string,
+    request: QuestionGenerationRequest,
+    aiMetadata: { model: string; prompt: string; response: string }
+  ): GeneratedQuestion[] {
     try {
       // Extract JSON from the response (handle markdown code blocks)
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\[[\s\S]*\]/)
-      
+      const jsonMatch =
+        content.match(/```json\s*([\s\S]*?)\s*```/) ||
+        content.match(/\[[\s\S]*\]/)
+
       if (!jsonMatch) {
         throw new Error('No valid JSON found in AI response')
       }
@@ -296,7 +329,7 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
         throw new Error('AI response is not an array of questions')
       }
 
-      return parsedQuestions.map((q: any, index: number) => ({
+      return parsedQuestions.map((q: ParsedQuestionFromAI, index: number) => ({
         title: q.title || `Generated Question ${index + 1}`,
         content: q.content,
         type: request.type,
@@ -307,30 +340,31 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
         points: q.points || this.getDefaultPoints(request.difficulty),
         category: q.category || request.subject || request.topic,
         tags: Array.isArray(q.tags) ? q.tags : [request.topic],
-        ai_metadata: aiMetadata
+        ai_metadata: aiMetadata,
       }))
-
     } catch (error) {
       console.error('Failed to parse AI response:', error)
       console.log('Raw content:', content)
-      
+
       // Fallback: create a basic question if parsing fails
-      return [{
-        title: `Generated ${request.type} Question`,
-        content: content.slice(0, 500) + (content.length > 500 ? '...' : ''),
-        type: request.type,
-        difficulty: request.difficulty,
-        correct_answer: 'Unable to parse',
-        explanation: 'AI response could not be parsed properly',
-        points: this.getDefaultPoints(request.difficulty),
-        category: request.subject || request.topic,
-        tags: [request.topic, 'ai-parse-error'],
-        ai_metadata: {
-          ...aiMetadata,
-          parse_error: true,
-          raw_content: content
-        }
-      }]
+      return [
+        {
+          title: `Generated ${request.type} Question`,
+          content: content.slice(0, 500) + (content.length > 500 ? '...' : ''),
+          type: request.type,
+          difficulty: request.difficulty,
+          correct_answer: 'Unable to parse',
+          explanation: 'AI response could not be parsed properly',
+          points: this.getDefaultPoints(request.difficulty),
+          category: request.subject || request.topic,
+          tags: [request.topic, 'ai-parse-error'],
+          ai_metadata: {
+            ...aiMetadata,
+            parse_error: true,
+            raw_content: content,
+          },
+        },
+      ]
     }
   }
 
@@ -348,12 +382,21 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
     const results: QuestionGenerationResult[] = []
 
     // Generate questions for each difficulty level
-    for (const [difficulty, count] of Object.entries(specifications) as [QuestionDifficulty, number][]) {
-      if (difficulty === 'easy' || difficulty === 'medium' || difficulty === 'hard') {
+    for (const [difficulty, count] of Object.entries(specifications) as [
+      QuestionDifficulty,
+      number,
+    ][]) {
+      if (
+        difficulty === 'easy' ||
+        difficulty === 'medium' ||
+        difficulty === 'hard'
+      ) {
         if (count > 0) {
           // Distribute questions across different types
-          const typesPerDifficulty = Math.ceil(count / specifications.types.length)
-          
+          const typesPerDifficulty = Math.ceil(
+            count / specifications.types.length
+          )
+
           for (const type of specifications.types) {
             const request: QuestionGenerationRequest = {
               topic,
@@ -361,7 +404,7 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
               type,
               difficulty,
               count: Math.min(typesPerDifficulty, count),
-              context: specifications.context
+              context: specifications.context,
             }
 
             const result = await this.generateQuestions(request)

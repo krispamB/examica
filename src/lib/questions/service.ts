@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createClientClient } from '@/lib/supabase/client'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { GeneratedQuestion } from '@/lib/ai/question-generator'
 
 export type Question = Tables<'questions'>
@@ -22,10 +23,11 @@ export interface QuestionServiceOptions {
 }
 
 export class QuestionService {
-  private supabase: any
+  private supabase: SupabaseClient | null
 
   constructor(options: QuestionServiceOptions = {}) {
-    this.supabase = options.useServerClient !== false ? null : createClientClient()
+    this.supabase =
+      options.useServerClient !== false ? null : createClientClient()
   }
 
   private async getSupabaseClient() {
@@ -58,12 +60,12 @@ export class QuestionService {
 
       return {
         success: true,
-        question
+        question,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -82,21 +84,23 @@ export class QuestionService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      const questionsToInsert: QuestionInsert[] = generatedQuestions.map(q => ({
-        title: q.title,
-        content: q.content,
-        type: q.type,
-        difficulty: q.difficulty,
-        category: q.category || null,
-        tags: q.tags || null,
-        options: q.options ? JSON.parse(JSON.stringify(q.options)) : null,
-        correct_answer: JSON.parse(JSON.stringify(q.correct_answer)),
-        explanation: q.explanation,
-        points: q.points,
-        ai_generated: true,
-        ai_metadata: JSON.parse(JSON.stringify(q.ai_metadata)),
-        created_by: createdBy
-      }))
+      const questionsToInsert: QuestionInsert[] = generatedQuestions.map(
+        (q) => ({
+          title: q.title,
+          content: q.content,
+          type: q.type,
+          difficulty: q.difficulty,
+          category: q.category || null,
+          tags: q.tags || null,
+          options: q.options ? JSON.parse(JSON.stringify(q.options)) : null,
+          correct_answer: JSON.parse(JSON.stringify(q.correct_answer)),
+          explanation: q.explanation,
+          points: q.points,
+          ai_generated: true,
+          ai_metadata: JSON.parse(JSON.stringify(q.ai_metadata)),
+          created_by: createdBy,
+        })
+      )
 
       const { data: questions, error } = await supabase
         .from('questions')
@@ -109,12 +113,12 @@ export class QuestionService {
 
       return {
         success: true,
-        questions
+        questions,
       }
     } catch (error) {
       return {
         success: false,
-        errors: [error instanceof Error ? error.message : 'Unknown error']
+        errors: [error instanceof Error ? error.message : 'Unknown error'],
       }
     }
   }
@@ -122,12 +126,15 @@ export class QuestionService {
   /**
    * Get questions with filtering and pagination
    */
-  async getQuestions(filters: QuestionFilters = {}, options: {
-    page?: number
-    limit?: number
-    sortBy?: string
-    sortOrder?: 'asc' | 'desc'
-  } = {}): Promise<{
+  async getQuestions(
+    filters: QuestionFilters = {},
+    options: {
+      page?: number
+      limit?: number
+      sortBy?: string
+      sortOrder?: 'asc' | 'desc'
+    } = {}
+  ): Promise<{
     success: boolean
     questions?: Question[]
     totalCount?: number
@@ -138,25 +145,27 @@ export class QuestionService {
 
       let query = supabase
         .from('questions')
-        .select('*, user_profiles!created_by(first_name, last_name)', { count: 'exact' })
+        .select('*, user_profiles!created_by(first_name, last_name)', {
+          count: 'exact',
+        })
 
       // Apply filters
       if (filters.type) {
         query = query.eq('type', filters.type)
       }
-      
+
       if (filters.difficulty) {
         query = query.eq('difficulty', filters.difficulty)
       }
-      
+
       if (filters.category) {
         query = query.eq('category', filters.category)
       }
-      
+
       if (filters.aiGenerated !== undefined) {
         query = query.eq('ai_generated', filters.aiGenerated)
       }
-      
+
       if (filters.createdBy) {
         query = query.eq('created_by', filters.createdBy)
       }
@@ -166,7 +175,9 @@ export class QuestionService {
       }
 
       if (filters.search) {
-        query = query.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`)
+        query = query.or(
+          `title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`
+        )
       }
 
       // Apply sorting
@@ -191,12 +202,12 @@ export class QuestionService {
       return {
         success: true,
         questions: questions || [],
-        totalCount: count || 0
+        totalCount: count || 0,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -224,12 +235,12 @@ export class QuestionService {
 
       return {
         success: true,
-        question
+        question,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -237,7 +248,10 @@ export class QuestionService {
   /**
    * Update a question
    */
-  async updateQuestion(id: string, updates: QuestionUpdate): Promise<{
+  async updateQuestion(
+    id: string,
+    updates: QuestionUpdate
+  ): Promise<{
     success: boolean
     question?: Question
     error?: string
@@ -249,7 +263,7 @@ export class QuestionService {
         .from('questions')
         .update({
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', id)
         .select()
@@ -261,12 +275,12 @@ export class QuestionService {
 
       return {
         success: true,
-        question
+        question,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -281,22 +295,19 @@ export class QuestionService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      const { error } = await supabase
-        .from('questions')
-        .delete()
-        .eq('id', id)
+      const { error } = await supabase.from('questions').delete().eq('id', id)
 
       if (error) {
         throw new Error(error.message)
       }
 
       return {
-        success: true
+        success: true,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -323,12 +334,12 @@ export class QuestionService {
 
       return {
         success: true,
-        deletedCount: count || 0
+        deletedCount: count || 0,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -350,7 +361,9 @@ export class QuestionService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      let query = supabase.from('questions').select('type, difficulty, ai_generated, category')
+      let query = supabase
+        .from('questions')
+        .select('type, difficulty, ai_generated, category')
 
       // Apply the same filters as getQuestions
       if (filters.createdBy) {
@@ -368,7 +381,16 @@ export class QuestionService {
       }
 
       if (!questions) {
-        return { success: true, stats: { total: 0, byType: {}, byDifficulty: {}, aiGenerated: 0, categories: [] } }
+        return {
+          success: true,
+          stats: {
+            total: 0,
+            byType: {},
+            byDifficulty: {},
+            aiGenerated: 0,
+            categories: [],
+          },
+        }
       }
 
       const stats = {
@@ -376,17 +398,18 @@ export class QuestionService {
         byType: {} as Record<string, number>,
         byDifficulty: {} as Record<string, number>,
         aiGenerated: 0,
-        categories: [] as string[]
+        categories: [] as string[],
       }
 
       const categorySet = new Set<string>()
 
-      questions.forEach(q => {
+      questions.forEach((q) => {
         // Count by type
         stats.byType[q.type] = (stats.byType[q.type] || 0) + 1
 
         // Count by difficulty
-        stats.byDifficulty[q.difficulty] = (stats.byDifficulty[q.difficulty] || 0) + 1
+        stats.byDifficulty[q.difficulty] =
+          (stats.byDifficulty[q.difficulty] || 0) + 1
 
         // Count AI generated
         if (q.ai_generated) {
@@ -403,19 +426,21 @@ export class QuestionService {
 
       return {
         success: true,
-        stats
+        stats,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
 }
 
 // Factory function
-export function createQuestionService(options?: QuestionServiceOptions): QuestionService {
+export function createQuestionService(
+  options?: QuestionServiceOptions
+): QuestionService {
   return new QuestionService(options)
 }
 

@@ -10,7 +10,7 @@ interface EditExamPageProps {
 }
 
 export default async function EditExamPage({ params }: EditExamPageProps) {
-  const { examId } = params
+  const { examId } = await params
 
   try {
     // Create Supabase client
@@ -19,6 +19,7 @@ export default async function EditExamPage({ params }: EditExamPageProps) {
     // Get current user
     const {
       data: { user },
+
       error: authError,
     } = await supabase.auth.getUser()
 
@@ -63,33 +64,28 @@ export default async function EditExamPage({ params }: EditExamPageProps) {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Edit Exam</h1>
             <p className="text-secondary">
-              Modify questions, settings, and configuration for &quot;{exam.title}&quot;
+              Modify questions, settings, and configuration for &quot;
+              {exam.title}&quot;
             </p>
           </div>
-          
+
           {/* Status Badge */}
-          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-            exam.status === 'active' ? 'bg-success-light text-success' :
-            exam.status === 'draft' ? 'bg-warning-light text-warning' :
-            'bg-background-secondary text-secondary'
-          }`}>
+          <div
+            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+              exam.status === 'active'
+                ? 'bg-success-light text-success'
+                : exam.status === 'draft'
+                  ? 'bg-warning-light text-warning'
+                  : 'bg-background-secondary text-secondary'
+            }`}
+          >
             {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
           </div>
         </div>
 
-        <ExamBuilder 
-          mode="edit" 
-          examId={examId}
-          initialExam={exam}
-          userId={user.id}
-          onExamUpdated={() => {
-            // Refresh the page to show updated data
-            window.location.reload()
-          }}
-        />
+        <ExamBuilder examId={examId} />
       </div>
     )
-
   } catch (error) {
     console.error('Edit exam page error:', error)
     redirect('/examiner/exams')
@@ -97,12 +93,12 @@ export default async function EditExamPage({ params }: EditExamPageProps) {
 }
 
 export async function generateMetadata({ params }: EditExamPageProps) {
-  const { examId } = params
-  
+  const { examId } = await params
+
   try {
     const examService = createExamService()
     const examResult = await examService.getExam(examId)
-    
+
     if (examResult.success && examResult.exam) {
       return {
         title: `Edit ${examResult.exam.title} - Examica`,
@@ -112,7 +108,7 @@ export async function generateMetadata({ params }: EditExamPageProps) {
   } catch (error) {
     console.error('Generate metadata error:', error)
   }
-  
+
   return {
     title: 'Edit Exam - Examica',
     description: 'Edit exam settings and questions',

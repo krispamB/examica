@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createClientClient } from '@/lib/supabase/client'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type Exam = Tables<'exams'>
 export type ExamInsert = TablesInsert<'exams'>
@@ -10,9 +11,11 @@ export type ExamQuestion = Tables<'exam_questions'>
 export type ExamQuestionInsert = TablesInsert<'exam_questions'>
 
 export interface ExamWithQuestions extends Exam {
-  exam_questions: Array<ExamQuestion & {
-    questions: Tables<'questions'>
-  }>
+  exam_questions: Array<
+    ExamQuestion & {
+      questions: Tables<'questions'>
+    }
+  >
   question_count?: number
   total_points?: number
 }
@@ -41,10 +44,11 @@ export interface ExamServiceOptions {
 }
 
 export class ExamService {
-  private supabase: any
+  private supabase: SupabaseClient | null
 
   constructor(options: ExamServiceOptions = {}) {
-    this.supabase = options.useServerClient !== false ? null : createClientClient()
+    this.supabase =
+      options.useServerClient !== false ? null : createClientClient()
   }
 
   private async getSupabaseClient() {
@@ -57,7 +61,10 @@ export class ExamService {
   /**
    * Create a new exam with questions
    */
-  async createExam(examData: ExamCreateData, createdBy: string): Promise<{
+  async createExam(
+    examData: ExamCreateData,
+    createdBy: string
+  ): Promise<{
     success: boolean
     exam?: ExamWithQuestions
     error?: string
@@ -85,7 +92,7 @@ export class ExamService {
 
       // Add questions to exam
       if (examData.questions.length > 0) {
-        const examQuestions = examData.questions.map(q => ({
+        const examQuestions = examData.questions.map((q) => ({
           exam_id: exam.id,
           question_id: q.question_id,
           order_index: q.order_index,
@@ -106,15 +113,15 @@ export class ExamService {
 
       // Fetch complete exam with questions
       const completeExam = await this.getExam(exam.id)
-      
+
       return {
         success: true,
-        exam: completeExam.exam
+        exam: completeExam.exam,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -122,13 +129,16 @@ export class ExamService {
   /**
    * Get exams with filtering and pagination
    */
-  async getExams(filters: ExamFilters = {}, options: {
-    page?: number
-    limit?: number
-    includeQuestions?: boolean
-    sortBy?: string
-    sortOrder?: 'asc' | 'desc'
-  } = {}): Promise<{
+  async getExams(
+    filters: ExamFilters = {},
+    options: {
+      page?: number
+      limit?: number
+      includeQuestions?: boolean
+      sortBy?: string
+      sortOrder?: 'asc' | 'desc'
+    } = {}
+  ): Promise<{
     success: boolean
     exams?: ExamWithQuestions[]
     totalCount?: number
@@ -137,12 +147,13 @@ export class ExamService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      let query = supabase
-        .from('exams')
-        .select(`
+      let query = supabase.from('exams').select(
+        `
           *,
           user_profiles!created_by(first_name, last_name),
-          ${options.includeQuestions ? `
+          ${
+            options.includeQuestions
+              ? `
             exam_questions(
               id,
               order_index,
@@ -156,20 +167,26 @@ export class ExamService {
                 points
               )
             )
-          ` : 'exam_questions(id)'}
-        `, { count: 'exact' })
+          `
+              : 'exam_questions(id)'
+          }
+        `,
+        { count: 'exact' }
+      )
 
       // Apply filters
       if (filters.status) {
         query = query.eq('status', filters.status)
       }
-      
+
       if (filters.createdBy) {
         query = query.eq('created_by', filters.createdBy)
       }
 
       if (filters.search) {
-        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
+        query = query.or(
+          `title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
+        )
       }
 
       // Apply sorting
@@ -192,24 +209,27 @@ export class ExamService {
       }
 
       // Enrich exams with question stats
-      const enrichedExams = (exams || []).map(exam => ({
+      const enrichedExams = (exams || []).map((exam) => ({
         ...exam,
         question_count: exam.exam_questions?.length || 0,
-        total_points: options.includeQuestions 
-          ? exam.exam_questions?.reduce((sum: number, eq: any) => 
-              sum + (eq.points || eq.questions?.points || 1), 0) || 0
-          : undefined
+        total_points: options.includeQuestions
+          ? exam.exam_questions?.reduce(
+              (sum: number, eq) =>
+                sum + (eq.points || eq.questions?.points || 1),
+              0
+            ) || 0
+          : undefined,
       }))
 
       return {
         success: true,
         exams: enrichedExams,
-        totalCount: count || 0
+        totalCount: count || 0,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -227,7 +247,8 @@ export class ExamService {
 
       const { data: exam, error } = await supabase
         .from('exams')
-        .select(`
+        .select(
+          `
           *,
           user_profiles!created_by(first_name, last_name),
           exam_questions(
@@ -249,7 +270,8 @@ export class ExamService {
               tags
             )
           )
-        `)
+        `
+        )
         .eq('id', id)
         .single()
 
@@ -259,25 +281,28 @@ export class ExamService {
 
       // Sort questions by order_index
       if (exam.exam_questions) {
-        exam.exam_questions.sort((a: any, b: any) => a.order_index - b.order_index)
+        exam.exam_questions.sort((a, b) => a.order_index - b.order_index)
       }
 
       // Calculate totals
       const enrichedExam = {
         ...exam,
         question_count: exam.exam_questions?.length || 0,
-        total_points: exam.exam_questions?.reduce((sum: number, eq: any) => 
-          sum + (eq.points || eq.questions?.points || 1), 0) || 0
+        total_points:
+          exam.exam_questions?.reduce(
+            (sum: number, eq) => sum + (eq.points || eq.questions?.points || 1),
+            0
+          ) || 0,
       }
 
       return {
         success: true,
-        exam: enrichedExam
+        exam: enrichedExam,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -285,7 +310,10 @@ export class ExamService {
   /**
    * Update an exam
    */
-  async updateExam(id: string, updates: ExamUpdate): Promise<{
+  async updateExam(
+    id: string,
+    updates: ExamUpdate
+  ): Promise<{
     success: boolean
     exam?: Exam
     error?: string
@@ -297,7 +325,7 @@ export class ExamService {
         .from('exams')
         .update({
           ...updates,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', id)
         .select()
@@ -309,12 +337,12 @@ export class ExamService {
 
       return {
         success: true,
-        exam
+        exam,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -322,12 +350,15 @@ export class ExamService {
   /**
    * Update exam questions
    */
-  async updateExamQuestions(examId: string, questions: Array<{
-    question_id: string
-    order_index: number
-    points?: number
-    required?: boolean
-  }>): Promise<{
+  async updateExamQuestions(
+    examId: string,
+    questions: Array<{
+      question_id: string
+      order_index: number
+      points?: number
+      required?: boolean
+    }>
+  ): Promise<{
     success: boolean
     error?: string
   }> {
@@ -346,7 +377,7 @@ export class ExamService {
 
       // Add new questions
       if (questions.length > 0) {
-        const examQuestions = questions.map(q => ({
+        const examQuestions = questions.map((q) => ({
           exam_id: examId,
           question_id: q.question_id,
           order_index: q.order_index,
@@ -364,12 +395,12 @@ export class ExamService {
       }
 
       return {
-        success: true
+        success: true,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -384,22 +415,19 @@ export class ExamService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      const { error } = await supabase
-        .from('exams')
-        .delete()
-        .eq('id', id)
+      const { error } = await supabase.from('exams').delete().eq('id', id)
 
       if (error) {
         throw new Error(error.message)
       }
 
       return {
-        success: true
+        success: true,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -427,7 +455,7 @@ export class ExamService {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -459,9 +487,7 @@ export class ExamService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      let query = supabase
-        .from('exams')
-        .select('status, exam_questions(id)')
+      let query = supabase.from('exams').select('status, exam_questions(id)')
 
       // Apply filters
       if (filters.createdBy) {
@@ -475,17 +501,25 @@ export class ExamService {
       }
 
       if (!exams) {
-        return { success: true, stats: { total: 0, byStatus: {}, totalQuestions: 0, averageQuestionsPerExam: 0 } }
+        return {
+          success: true,
+          stats: {
+            total: 0,
+            byStatus: {},
+            totalQuestions: 0,
+            averageQuestionsPerExam: 0,
+          },
+        }
       }
 
       const stats = {
         total: exams.length,
         byStatus: {} as Record<string, number>,
         totalQuestions: 0,
-        averageQuestionsPerExam: 0
+        averageQuestionsPerExam: 0,
       }
 
-      exams.forEach(exam => {
+      exams.forEach((exam) => {
         // Count by status
         stats.byStatus[exam.status] = (stats.byStatus[exam.status] || 0) + 1
 
@@ -493,17 +527,19 @@ export class ExamService {
         stats.totalQuestions += exam.exam_questions?.length || 0
       })
 
-      stats.averageQuestionsPerExam = stats.total > 0 ? 
-        Math.round((stats.totalQuestions / stats.total) * 10) / 10 : 0
+      stats.averageQuestionsPerExam =
+        stats.total > 0
+          ? Math.round((stats.totalQuestions / stats.total) * 10) / 10
+          : 0
 
       return {
         success: true,
-        stats
+        stats,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }

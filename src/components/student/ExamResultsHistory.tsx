@@ -1,7 +1,14 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Trophy, Clock, FileText, TrendingUp, Calendar, Eye } from 'lucide-react'
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Trophy,
+  Clock,
+  FileText,
+  TrendingUp,
+  Calendar,
+  Eye,
+} from 'lucide-react'
 import Button from '@/components/ui/Button'
 import type { ExamResultWithDetails } from '@/lib/results/service'
 
@@ -12,18 +19,19 @@ interface ExamResultsHistoryProps {
 
 const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
   userId,
-  className = ''
+  className = '',
 }) => {
   const [results, setResults] = useState<ExamResultWithDetails[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedResult, setSelectedResult] = useState<ExamResultWithDetails | null>(null)
+  const [selectedResult, setSelectedResult] =
+    useState<ExamResultWithDetails | null>(null)
 
   useEffect(() => {
     loadResults()
-  }, [userId])
+  }, [loadResults])
 
-  const loadResults = async () => {
+  const loadResults = useCallback(async () => {
     try {
       setError(null)
 
@@ -46,12 +54,12 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [userId])
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m`
     }
@@ -81,14 +89,22 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
         averageScore: 0,
         totalTimeSpent: 0,
         passedExams: 0,
-        passRate: 0
+        passRate: 0,
       }
     }
 
-    const totalScore = results.reduce((sum, r) => sum + (r.percentage_score || 0), 0)
+    const totalScore = results.reduce(
+      (sum, r) => sum + (r.percentage_score || 0),
+      0
+    )
     const averageScore = totalScore / results.length
-    const totalTimeSpent = results.reduce((sum, r) => sum + (r.time_spent || 0), 0)
-    const passedExams = results.filter(r => (r.percentage_score || 0) >= 60).length
+    const totalTimeSpent = results.reduce(
+      (sum, r) => sum + (r.time_spent || 0),
+      0
+    )
+    const passedExams = results.filter(
+      (r) => (r.percentage_score || 0) >= 60
+    ).length
     const passRate = (passedExams / results.length) * 100
 
     return {
@@ -96,7 +112,7 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
       averageScore,
       totalTimeSpent,
       passedExams,
-      passRate
+      passRate,
     }
   }
 
@@ -117,11 +133,11 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
       <div className={`${className}`}>
         <div className="text-center py-12">
           <FileText className="w-12 h-12 text-error mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">Error Loading Results</h3>
+          <h3 className="text-lg font-medium text-foreground mb-2">
+            Error Loading Results
+          </h3>
           <p className="text-secondary mb-6">{error}</p>
-          <Button onClick={loadResults}>
-            Try Again
-          </Button>
+          <Button onClick={loadResults}>Try Again</Button>
         </div>
       </div>
     )
@@ -131,7 +147,9 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-foreground mb-1">Exam History</h2>
+        <h2 className="text-xl font-semibold text-foreground mb-1">
+          Exam History
+        </h2>
         <p className="text-secondary">Your exam performance and results</p>
       </div>
 
@@ -141,18 +159,28 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
           <div className="bg-background rounded-lg border border-border p-4">
             <div className="flex items-center gap-2 mb-2">
               <FileText className="w-5 h-5 text-primary" />
-              <span className="text-sm font-medium text-secondary">Total Exams</span>
+              <span className="text-sm font-medium text-secondary">
+                Total Exams
+              </span>
             </div>
-            <div className="text-2xl font-bold text-foreground">{stats.totalExams}</div>
-            <div className="text-xs text-secondary">{stats.passedExams} passed</div>
+            <div className="text-2xl font-bold text-foreground">
+              {stats.totalExams}
+            </div>
+            <div className="text-xs text-secondary">
+              {stats.passedExams} passed
+            </div>
           </div>
 
           <div className="bg-background rounded-lg border border-border p-4">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="w-5 h-5 text-success" />
-              <span className="text-sm font-medium text-secondary">Average Score</span>
+              <span className="text-sm font-medium text-secondary">
+                Average Score
+              </span>
             </div>
-            <div className={`text-2xl font-bold ${getScoreColor(stats.averageScore)}`}>
+            <div
+              className={`text-2xl font-bold ${getScoreColor(stats.averageScore)}`}
+            >
               {stats.averageScore.toFixed(1)}%
             </div>
             <div className="text-xs text-secondary">
@@ -163,20 +191,22 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
           <div className="bg-background rounded-lg border border-border p-4">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="w-5 h-5 text-info" />
-              <span className="text-sm font-medium text-secondary">Time Spent</span>
+              <span className="text-sm font-medium text-secondary">
+                Time Spent
+              </span>
             </div>
             <div className="text-2xl font-bold text-foreground">
               {formatTime(stats.totalTimeSpent)}
             </div>
-            <div className="text-xs text-secondary">
-              Total study time
-            </div>
+            <div className="text-xs text-secondary">Total study time</div>
           </div>
 
           <div className="bg-background rounded-lg border border-border p-4">
             <div className="flex items-center gap-2 mb-2">
               <Trophy className="w-5 h-5 text-warning" />
-              <span className="text-sm font-medium text-secondary">Pass Rate</span>
+              <span className="text-sm font-medium text-secondary">
+                Pass Rate
+              </span>
             </div>
             <div className="text-2xl font-bold text-foreground">
               {stats.passRate.toFixed(1)}%
@@ -197,13 +227,20 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
         {results.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 text-secondary mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No Exam Results</h3>
-            <p className="text-secondary">You haven&apos;t completed any exams yet.</p>
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              No Exam Results
+            </h3>
+            <p className="text-secondary">
+              You haven&apos;t completed any exams yet.
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-border">
             {results.map((result) => (
-              <div key={result.id} className="p-6 hover:bg-background-secondary">
+              <div
+                key={result.id}
+                className="p-6 hover:bg-background-secondary"
+              >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h4 className="text-lg font-medium text-foreground mb-1">
@@ -220,9 +257,11 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="text-right">
-                    <div className={`text-2xl font-bold ${getScoreColor(result.percentage_score || 0)}`}>
+                    <div
+                      className={`text-2xl font-bold ${getScoreColor(result.percentage_score || 0)}`}
+                    >
                       {(result.percentage_score || 0).toFixed(1)}%
                     </div>
                     <div className="text-sm text-secondary">
@@ -234,12 +273,16 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     {/* Grade Badge */}
-                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      (result.percentage_score || 0) >= 60 
-                        ? 'bg-success-light text-success' 
-                        : 'bg-error-light text-error'
-                    }`}>
-                      {(result.percentage_score || 0) >= 60 ? 'Passed' : 'Failed'}
+                    <div
+                      className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        (result.percentage_score || 0) >= 60
+                          ? 'bg-success-light text-success'
+                          : 'bg-error-light text-error'
+                      }`}
+                    >
+                      {(result.percentage_score || 0) >= 60
+                        ? 'Passed'
+                        : 'Failed'}
                     </div>
 
                     {/* Manual Grading Badge */}
@@ -265,7 +308,9 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
                   <div className="w-full bg-background-tertiary rounded-full h-2">
                     <div
                       className={`h-2 rounded-full ${
-                        (result.percentage_score || 0) >= 60 ? 'bg-success' : 'bg-error'
+                        (result.percentage_score || 0) >= 60
+                          ? 'bg-success'
+                          : 'bg-error'
                       }`}
                       style={{ width: `${result.percentage_score || 0}%` }}
                     />
@@ -282,7 +327,9 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-background rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-foreground">Exam Results</h3>
+              <h3 className="text-lg font-semibold text-foreground">
+                Exam Results
+              </h3>
               <Button
                 onClick={() => setSelectedResult(null)}
                 variant="ghost"
@@ -291,7 +338,7 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
                 ×
               </Button>
             </div>
-            
+
             <div className="p-6 space-y-6">
               {/* Exam Info */}
               <div>
@@ -316,33 +363,46 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
 
               {/* Score Details */}
               <div className="bg-background-secondary rounded-lg p-4">
-                <h5 className="font-medium text-foreground mb-3">Score Breakdown</h5>
+                <h5 className="font-medium text-foreground mb-3">
+                  Score Breakdown
+                </h5>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <div className={`text-3xl font-bold ${getScoreColor(selectedResult.percentage_score || 0)}`}>
+                    <div
+                      className={`text-3xl font-bold ${getScoreColor(selectedResult.percentage_score || 0)}`}
+                    >
                       {(selectedResult.percentage_score || 0).toFixed(1)}%
                     </div>
                     <div className="text-sm text-secondary">Final Score</div>
                   </div>
                   <div className="text-center">
                     <div className="text-3xl font-bold text-foreground">
-                      {selectedResult.correct_answers}/{selectedResult.total_questions}
+                      {selectedResult.correct_answers}/
+                      {selectedResult.total_questions}
                     </div>
-                    <div className="text-sm text-secondary">Correct Answers</div>
+                    <div className="text-sm text-secondary">
+                      Correct Answers
+                    </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-4">
                   <div className="flex justify-between text-sm text-secondary mb-1">
                     <span>Progress</span>
-                    <span>{(selectedResult.percentage_score || 0).toFixed(1)}%</span>
+                    <span>
+                      {(selectedResult.percentage_score || 0).toFixed(1)}%
+                    </span>
                   </div>
                   <div className="w-full bg-background-tertiary rounded-full h-2">
                     <div
                       className={`h-2 rounded-full ${
-                        (selectedResult.percentage_score || 0) >= 60 ? 'bg-success' : 'bg-error'
+                        (selectedResult.percentage_score || 0) >= 60
+                          ? 'bg-success'
+                          : 'bg-error'
                       }`}
-                      style={{ width: `${selectedResult.percentage_score || 0}%` }}
+                      style={{
+                        width: `${selectedResult.percentage_score || 0}%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -351,18 +411,25 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
               {/* Grading Status */}
               {selectedResult.requires_manual_grading && (
                 <div className="bg-warning-light border border-warning/20 rounded-lg p-4">
-                  <h5 className="font-medium text-warning mb-1">Manual Grading Required</h5>
+                  <h5 className="font-medium text-warning mb-1">
+                    Manual Grading Required
+                  </h5>
                   <p className="text-sm text-warning">
-                    This exam contains essay questions that require manual review. 
-                    Final scores will be available once grading is complete.
+                    This exam contains essay questions that require manual
+                    review. Final scores will be available once grading is
+                    complete.
                   </p>
                 </div>
               )}
 
               {selectedResult.grader_notes && (
                 <div className="bg-info-light border border-info/20 rounded-lg p-4">
-                  <h5 className="font-medium text-info mb-1">Instructor Feedback</h5>
-                  <p className="text-sm text-info">{selectedResult.grader_notes}</p>
+                  <h5 className="font-medium text-info mb-1">
+                    Instructor Feedback
+                  </h5>
+                  <p className="text-sm text-info">
+                    {selectedResult.grader_notes}
+                  </p>
                 </div>
               )}
             </div>

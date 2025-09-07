@@ -1,8 +1,19 @@
 'use client'
 
 import React, { useState } from 'react'
-import { X, Wand2, Brain, Loader, CheckCircle, AlertTriangle } from 'lucide-react'
-import type { QuestionType, QuestionDifficulty, QuestionGenerationRequest } from '@/lib/ai/question-generator'
+import {
+  X,
+  Wand2,
+  Brain,
+  Loader,
+  CheckCircle,
+  AlertTriangle,
+} from 'lucide-react'
+import type {
+  QuestionType,
+  QuestionDifficulty,
+  QuestionGenerationRequest,
+} from '@/lib/ai/question-generator'
 
 interface GenerateQuestionModalProps {
   isOpen: boolean
@@ -24,7 +35,7 @@ interface GenerationForm {
 export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
   isOpen,
   onClose,
-  onQuestionsGenerated
+  onQuestionsGenerated,
 }) => {
   const [form, setForm] = useState<GenerationForm>({
     topic: '',
@@ -34,17 +45,19 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
     count: 5,
     context: '',
     learningObjectives: [],
-    save: true
+    save: true,
   })
 
   const [isGenerating, setIsGenerating] = useState(false)
-  const [generationResult, setGenerationResult] = useState<any>(null)
+  const [generationResult, setGenerationResult] = useState<{
+    questions?: unknown[]
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentObjective, setCurrentObjective] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!form.topic.trim()) {
       setError('Topic is required')
       return
@@ -62,8 +75,11 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
         difficulty: form.difficulty,
         count: form.count,
         context: form.context.trim() || undefined,
-        learningObjectives: form.learningObjectives.length > 0 ? form.learningObjectives : undefined,
-        save: form.save
+        learningObjectives:
+          form.learningObjectives.length > 0
+            ? form.learningObjectives
+            : undefined,
+        save: form.save,
       }
 
       const response = await fetch('/api/questions/generate', {
@@ -86,26 +102,34 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
       }
     } catch (err) {
       console.error('Question generation error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to generate questions')
+      setError(
+        err instanceof Error ? err.message : 'Failed to generate questions'
+      )
     } finally {
       setIsGenerating(false)
     }
   }
 
   const addLearningObjective = () => {
-    if (currentObjective.trim() && !form.learningObjectives.includes(currentObjective.trim())) {
-      setForm(prev => ({
+    if (
+      currentObjective.trim() &&
+      !form.learningObjectives.includes(currentObjective.trim())
+    ) {
+      setForm((prev) => ({
         ...prev,
-        learningObjectives: [...prev.learningObjectives, currentObjective.trim()]
+        learningObjectives: [
+          ...prev.learningObjectives,
+          currentObjective.trim(),
+        ],
       }))
       setCurrentObjective('')
     }
   }
 
   const removeLearningObjective = (index: number) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      learningObjectives: prev.learningObjectives.filter((_, i) => i !== index)
+      learningObjectives: prev.learningObjectives.filter((_, i) => i !== index),
     }))
   }
 
@@ -119,7 +143,7 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
         count: 5,
         context: '',
         learningObjectives: [],
-        save: true
+        save: true,
       })
       setGenerationResult(null)
       setError(null)
@@ -140,8 +164,12 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
               <Brain className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Generate Questions with AI</h2>
-              <p className="text-sm text-gray-500">Create questions using Claude or OpenAI</p>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Generate Questions with AI
+              </h2>
+              <p className="text-sm text-gray-500">
+                Create questions using Claude or OpenAI
+              </p>
             </div>
           </div>
           <button
@@ -159,15 +187,28 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
             <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-5 h-5 text-green-500" />
-                <span className="font-medium text-green-900">Generation Successful!</span>
+                <span className="font-medium text-green-900">
+                  Generation Successful!
+                </span>
               </div>
               <div className="text-sm text-green-700">
                 <p>Generated {generationResult.generated} questions</p>
                 {generationResult.saved > 0 && (
-                  <p>Saved {generationResult.saved} questions to the question bank</p>
+                  <p>
+                    Saved {generationResult.saved} questions to the question
+                    bank
+                  </p>
                 )}
-                <p>Model used: {generationResult.generation_metadata?.model_used}</p>
-                <p>Generation time: {(generationResult.generation_metadata?.generation_time / 1000).toFixed(1)}s</p>
+                <p>
+                  Model used: {generationResult.generation_metadata?.model_used}
+                </p>
+                <p>
+                  Generation time:{' '}
+                  {(
+                    generationResult.generation_metadata?.generation_time / 1000
+                  ).toFixed(1)}
+                  s
+                </p>
               </div>
             </div>
           )}
@@ -177,7 +218,9 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
-                <span className="font-medium text-red-900">Generation Failed</span>
+                <span className="font-medium text-red-900">
+                  Generation Failed
+                </span>
               </div>
               <p className="text-sm text-red-700 mt-1">{error}</p>
             </div>
@@ -194,20 +237,26 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
                 <input
                   type="text"
                   value={form.topic}
-                  onChange={(e) => setForm(prev => ({ ...prev, topic: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, topic: e.target.value }))
+                  }
                   placeholder="e.g., Photosynthesis, World War II, Calculus"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isGenerating}
                   required
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject
+                </label>
                 <input
                   type="text"
                   value={form.subject}
-                  onChange={(e) => setForm(prev => ({ ...prev, subject: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, subject: e.target.value }))
+                  }
                   placeholder="e.g., Biology, History, Mathematics"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isGenerating}
@@ -218,10 +267,17 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
             {/* Question Type & Difficulty */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Question Type
+                </label>
                 <select
                   value={form.type}
-                  onChange={(e) => setForm(prev => ({ ...prev, type: e.target.value as QuestionType }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      type: e.target.value as QuestionType,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isGenerating}
                 >
@@ -234,10 +290,17 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Difficulty
+                </label>
                 <select
                   value={form.difficulty}
-                  onChange={(e) => setForm(prev => ({ ...prev, difficulty: e.target.value as QuestionDifficulty }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      difficulty: e.target.value as QuestionDifficulty,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isGenerating}
                 >
@@ -248,13 +311,20 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Count</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Count
+                </label>
                 <input
                   type="number"
                   min="1"
                   max="20"
                   value={form.count}
-                  onChange={(e) => setForm(prev => ({ ...prev, count: parseInt(e.target.value) || 1 }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      count: parseInt(e.target.value) || 1,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isGenerating}
                 />
@@ -263,10 +333,14 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
 
             {/* Context */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Context (Optional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Context (Optional)
+              </label>
               <textarea
                 value={form.context}
-                onChange={(e) => setForm(prev => ({ ...prev, context: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, context: e.target.value }))
+                }
                 placeholder="Provide additional context, constraints, or specific requirements for the questions..."
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
@@ -279,14 +353,17 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Learning Objectives (Optional)
               </label>
-              
+
               {/* Add Objective Input */}
               <div className="flex gap-2 mb-3">
                 <input
                   type="text"
                   value={currentObjective}
                   onChange={(e) => setCurrentObjective(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addLearningObjective())}
+                  onKeyPress={(e) =>
+                    e.key === 'Enter' &&
+                    (e.preventDefault(), addLearningObjective())
+                  }
                   placeholder="Enter a learning objective..."
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isGenerating}
@@ -305,8 +382,13 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
               {form.learningObjectives.length > 0 && (
                 <div className="space-y-2">
                   {form.learningObjectives.map((objective, index) => (
-                    <div key={index} className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg">
-                      <span className="flex-1 text-sm text-purple-900">{objective}</span>
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg"
+                    >
+                      <span className="flex-1 text-sm text-purple-900">
+                        {objective}
+                      </span>
                       <button
                         type="button"
                         onClick={() => removeLearningObjective(index)}
@@ -327,7 +409,9 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
                 <input
                   type="checkbox"
                   checked={form.save}
-                  onChange={(e) => setForm(prev => ({ ...prev, save: e.target.checked }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, save: e.target.checked }))
+                  }
                   disabled={isGenerating}
                   className="rounded border-gray-300 text-purple-600 shadow-sm focus:ring-purple-500"
                 />
@@ -347,7 +431,7 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
               >
                 Cancel
               </button>
-              
+
               <button
                 type="submit"
                 disabled={isGenerating || !form.topic.trim()}

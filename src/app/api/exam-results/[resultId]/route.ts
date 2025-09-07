@@ -41,7 +41,8 @@ export async function GET(request: NextRequest, context: Context) {
     // Get the result
     const { data: result, error } = await supabase
       .from('exam_results')
-      .select(`
+      .select(
+        `
         *,
         exam_sessions(
           *,
@@ -49,30 +50,24 @@ export async function GET(request: NextRequest, context: Context) {
         ),
         user_profiles(first_name, last_name, email),
         exams(title, total_points)
-      `)
+      `
+      )
       .eq('id', resultId)
       .single()
 
     if (error) {
-      return NextResponse.json(
-        { error: 'Result not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Result not found' }, { status: 404 })
     }
 
     // Students can only see their own results
     if (userProfile.role === 'student' && result.user_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Access denied' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
     return NextResponse.json({
       success: true,
       result,
     })
-
   } catch (error) {
     console.error('Get exam result API error:', error)
     return NextResponse.json(
@@ -135,17 +130,13 @@ export async function PATCH(request: NextRequest, context: Context) {
     const result = await resultsService.updateExamResult(resultId, updates)
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
     return NextResponse.json({
       success: true,
       result: result.result,
     })
-
   } catch (error) {
     console.error('Update exam result API error:', error)
     return NextResponse.json(

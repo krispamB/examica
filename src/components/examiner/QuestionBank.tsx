@@ -1,20 +1,19 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Wand2, 
-  MoreHorizontal, 
-  Edit, 
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Search,
+  Filter,
+  Plus,
+  Wand2,
+  Edit,
   Trash2,
   Eye,
   Brain,
   User,
   Clock,
   Tag,
-  Target
+  Target,
 } from 'lucide-react'
 import type { Question, QuestionFilters } from '@/lib/questions/service'
 
@@ -22,17 +21,22 @@ interface QuestionBankProps {
   className?: string
 }
 
-type QuestionType = 'multiple_choice' | 'true_false' | 'essay' | 'fill_blank' | 'matching'
+type QuestionType =
+  | 'multiple_choice'
+  | 'true_false'
+  | 'essay'
+  | 'fill_blank'
+  | 'matching'
 type QuestionDifficulty = 'easy' | 'medium' | 'hard'
 
 export const QuestionBank: React.FC<QuestionBankProps> = ({
-  className = ''
+  className = '',
 }) => {
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
-  
+
   // Filters and search
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState<QuestionFilters>({})
@@ -44,12 +48,14 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
   const [itemsPerPage] = useState(20)
 
   // Modals
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showGenerateModal, setShowGenerateModal] = useState(false)
-  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null)
+  const [_showCreateModal, setShowCreateModal] = useState(false)
+  const [_showGenerateModal, setShowGenerateModal] = useState(false)
+  const [_selectedQuestion, setSelectedQuestion] = useState<Question | null>(
+    null
+  )
 
   // Fetch questions
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -61,7 +67,9 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
         ...(filters.type && { type: filters.type }),
         ...(filters.difficulty && { difficulty: filters.difficulty }),
         ...(filters.category && { category: filters.category }),
-        ...(filters.aiGenerated !== undefined && { ai_generated: filters.aiGenerated.toString() }),
+        ...(filters.aiGenerated !== undefined && {
+          ai_generated: filters.aiGenerated.toString(),
+        }),
         ...(filters.tags && { tags: filters.tags.join(',') }),
       })
 
@@ -80,12 +88,12 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, itemsPerPage, search, filters])
 
   // Effects
   useEffect(() => {
     fetchQuestions()
-  }, [currentPage, search, filters])
+  }, [fetchQuestions])
 
   // Handlers
   const handleSearch = (e: React.FormEvent) => {
@@ -95,14 +103,14 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
   }
 
   const handleFilterChange = (newFilters: Partial<QuestionFilters>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }))
+    setFilters((prev) => ({ ...prev, ...newFilters }))
     setCurrentPage(1)
   }
 
   const handleQuestionSelect = (questionId: string) => {
-    setSelectedQuestions(prev => 
+    setSelectedQuestions((prev) =>
       prev.includes(questionId)
-        ? prev.filter(id => id !== questionId)
+        ? prev.filter((id) => id !== questionId)
         : [...prev, questionId]
     )
   }
@@ -111,20 +119,21 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
     if (selectedQuestions.length === questions.length) {
       setSelectedQuestions([])
     } else {
-      setSelectedQuestions(questions.map(q => q.id))
+      setSelectedQuestions(questions.map((q) => q.id))
     }
   }
 
   const handleDeleteSelected = async () => {
     if (selectedQuestions.length === 0) return
 
-    if (!confirm(`Delete ${selectedQuestions.length} selected questions?`)) return
+    if (!confirm(`Delete ${selectedQuestions.length} selected questions?`))
+      return
 
     try {
       const response = await fetch('/api/questions/bulk-delete', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedQuestions })
+        body: JSON.stringify({ ids: selectedQuestions }),
       })
 
       if (!response.ok) {
@@ -141,26 +150,36 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
 
   // Format functions
   const formatQuestionType = (type: QuestionType) => {
-    return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+    return type.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())
   }
 
   const getDifficultyColor = (difficulty: QuestionDifficulty) => {
     switch (difficulty) {
-      case 'easy': return 'text-green-600 bg-green-50'
-      case 'medium': return 'text-orange-600 bg-orange-50'
-      case 'hard': return 'text-red-600 bg-red-50'
-      default: return 'text-gray-600 bg-gray-50'
+      case 'easy':
+        return 'text-green-600 bg-green-50'
+      case 'medium':
+        return 'text-orange-600 bg-orange-50'
+      case 'hard':
+        return 'text-red-600 bg-red-50'
+      default:
+        return 'text-gray-600 bg-gray-50'
     }
   }
 
   const getTypeIcon = (type: QuestionType) => {
     switch (type) {
-      case 'multiple_choice': return '○'
-      case 'true_false': return '✓'
-      case 'essay': return '✍'
-      case 'fill_blank': return '___'
-      case 'matching': return '⚡'
-      default: return '?'
+      case 'multiple_choice':
+        return '○'
+      case 'true_false':
+        return '✓'
+      case 'essay':
+        return '✍'
+      case 'fill_blank':
+        return '___'
+      case 'matching':
+        return '⚡'
+      default:
+        return '?'
     }
   }
 
@@ -181,7 +200,9 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Question Bank</h2>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Question Bank
+            </h2>
             <p className="text-sm text-gray-500 mt-1">
               {totalCount} questions • {selectedQuestions.length} selected
             </p>
@@ -220,7 +241,7 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
               />
             </div>
           </form>
-          
+
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
@@ -245,10 +266,14 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type
+                </label>
                 <select
                   value={filters.type || ''}
-                  onChange={(e) => handleFilterChange({ type: e.target.value || undefined })}
+                  onChange={(e) =>
+                    handleFilterChange({ type: e.target.value || undefined })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Types</option>
@@ -261,10 +286,16 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Difficulty
+                </label>
                 <select
                   value={filters.difficulty || ''}
-                  onChange={(e) => handleFilterChange({ difficulty: e.target.value || undefined })}
+                  onChange={(e) =>
+                    handleFilterChange({
+                      difficulty: e.target.value || undefined,
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Difficulties</option>
@@ -275,12 +306,18 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Source
+                </label>
                 <select
                   value={filters.aiGenerated?.toString() || ''}
-                  onChange={(e) => handleFilterChange({ 
-                    aiGenerated: e.target.value ? e.target.value === 'true' : undefined 
-                  })}
+                  onChange={(e) =>
+                    handleFilterChange({
+                      aiGenerated: e.target.value
+                        ? e.target.value === 'true'
+                        : undefined,
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">All Sources</option>
@@ -290,11 +327,17 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category
+                </label>
                 <input
                   type="text"
                   value={filters.category || ''}
-                  onChange={(e) => handleFilterChange({ category: e.target.value || undefined })}
+                  onChange={(e) =>
+                    handleFilterChange({
+                      category: e.target.value || undefined,
+                    })
+                  }
                   placeholder="Enter category..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
@@ -330,9 +373,11 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Search className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No questions found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No questions found
+            </h3>
             <p className="text-gray-500 mb-6">
-              {search || Object.keys(filters).length > 0 
+              {search || Object.keys(filters).length > 0
                 ? 'Try adjusting your search or filters.'
                 : 'Get started by creating your first question or generating some with AI.'}
             </p>
@@ -376,7 +421,9 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
                 <div
                   key={question.id}
                   className={`p-4 border rounded-lg hover:bg-gray-50 transition-colors ${
-                    selectedQuestions.includes(question.id) ? 'border-blue-300 bg-blue-50' : 'border-gray-200'
+                    selectedQuestions.includes(question.id)
+                      ? 'border-blue-300 bg-blue-50'
+                      : 'border-gray-200'
                   }`}
                 >
                   <div className="flex items-start gap-4">
@@ -386,7 +433,7 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
                       onChange={() => handleQuestionSelect(question.id)}
                       className="mt-1 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500"
                     />
-                    
+
                     <div className="flex-1 min-w-0">
                       {/* Header */}
                       <div className="flex items-center justify-between mb-2">
@@ -397,11 +444,13 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
                           <h3 className="font-medium text-gray-900 truncate">
                             {question.title}
                           </h3>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty as QuestionDifficulty)}`}>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty as QuestionDifficulty)}`}
+                          >
                             {question.difficulty}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setSelectedQuestion(question)}
@@ -440,7 +489,11 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
                           </span>
                         )}
                         <span className="flex items-center gap-1">
-                          {question.ai_generated ? <Brain className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                          {question.ai_generated ? (
+                            <Brain className="w-3 h-3" />
+                          ) : (
+                            <User className="w-3 h-3" />
+                          )}
                           {question.ai_generated ? 'AI Generated' : 'Manual'}
                         </span>
                         <span className="flex items-center gap-1">
@@ -458,11 +511,15 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
             {totalCount > itemsPerPage && (
               <div className="mt-6 flex items-center justify-between">
                 <div className="text-sm text-gray-500">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} questions
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+                  {Math.min(currentPage * itemsPerPage, totalCount)} of{' '}
+                  {totalCount} questions
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
                     disabled={currentPage === 1}
                     className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -472,8 +529,10 @@ export const QuestionBank: React.FC<QuestionBankProps> = ({
                     Page {currentPage} of {Math.ceil(totalCount / itemsPerPage)}
                   </span>
                   <button
-                    onClick={() => setCurrentPage(prev => prev + 1)}
-                    disabled={currentPage >= Math.ceil(totalCount / itemsPerPage)}
+                    onClick={() => setCurrentPage((prev) => prev + 1)}
+                    disabled={
+                      currentPage >= Math.ceil(totalCount / itemsPerPage)
+                    }
                     className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next

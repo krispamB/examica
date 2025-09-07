@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createClientClient } from '@/lib/supabase/client'
 import type { Tables, TablesInsert } from '@/types/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ExamSessionWithDetails } from '@/lib/exam-sessions/service'
 
 export type ExamResult = Tables<'exam_results'>
@@ -60,10 +61,11 @@ export interface ResultsServiceOptions {
 }
 
 export class ResultsService {
-  private supabase: any
+  private supabase: SupabaseClient | null
 
   constructor(options: ResultsServiceOptions = {}) {
-    this.supabase = options.useServerClient !== false ? null : createClientClient()
+    this.supabase =
+      options.useServerClient !== false ? null : createClientClient()
   }
 
   private async getSupabaseClient() {
@@ -87,7 +89,8 @@ export class ResultsService {
       // Get session with questions and responses
       const { data: session, error: sessionError } = await supabase
         .from('exam_sessions')
-        .select(`
+        .select(
+          `
           *,
           exams(*),
           question_responses(
@@ -99,7 +102,8 @@ export class ResultsService {
               points
             )
           )
-        `)
+        `
+        )
         .eq('id', sessionId)
         .eq('status', 'completed')
         .single()
@@ -107,7 +111,7 @@ export class ResultsService {
       if (sessionError || !session) {
         return {
           success: false,
-          error: 'Session not found or not completed'
+          error: 'Session not found or not completed',
         }
       }
 
@@ -121,7 +125,7 @@ export class ResultsService {
       if (existingResult) {
         return {
           success: false,
-          error: 'Result already calculated for this session'
+          error: 'Result already calculated for this session',
         }
       }
 
@@ -141,21 +145,23 @@ export class ResultsService {
 
         // Check if answer is correct based on question type
         let isCorrect = false
-        
+
         switch (question.type) {
           case 'multiple_choice':
           case 'true_false':
           case 'fill_blank':
-            isCorrect = this.normalizeAnswer(response.response) === this.normalizeAnswer(question.correct_answer)
+            isCorrect =
+              this.normalizeAnswer(response.response) ===
+              this.normalizeAnswer(question.correct_answer)
             break
-          
+
           case 'essay':
           case 'matching':
             // For essay and matching questions, manual grading is required
             // For now, we'll award partial credit
             isCorrect = false // Requires manual review
             break
-          
+
           default:
             isCorrect = false
         }
@@ -166,8 +172,12 @@ export class ResultsService {
         }
       }
 
-      const percentage = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0
-      const timeSpent = this.calculateTimeSpent(session.started_at, session.completed_at)
+      const percentage =
+        maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0
+      const timeSpent = this.calculateTimeSpent(
+        session.started_at,
+        session.completed_at
+      )
 
       // Create exam result
       const { data: result, error: resultError } = await supabase
@@ -183,7 +193,9 @@ export class ResultsService {
           total_questions: totalQuestions,
           time_spent: timeSpent,
           submitted_at: session.completed_at || new Date().toISOString(),
-          requires_manual_grading: this.hasEssayQuestions(session.question_responses || [])
+          requires_manual_grading: this.hasEssayQuestions(
+            session.question_responses || []
+          ),
         })
         .select()
         .single()
@@ -194,46 +206,58 @@ export class ResultsService {
 
       return {
         success: true,
-        result
+        result,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
 
-  private normalizeAnswer(answer: any): string {
+  private normalizeAnswer(answer: unknown): string {
     if (typeof answer === 'string') {
       return answer.toLowerCase().trim()
     }
-    return String(answer || '').toLowerCase().trim()
+    return String(answer || '')
+      .toLowerCase()
+      .trim()
   }
 
-  private calculateTimeSpent(startedAt: string, completedAt: string | null): number {
+  private calculateTimeSpent(
+    startedAt: string,
+    completedAt: string | null
+  ): number {
     if (!completedAt) return 0
     const start = new Date(startedAt).getTime()
     const end = new Date(completedAt).getTime()
     return Math.floor((end - start) / 1000) // seconds
   }
 
-  private hasEssayQuestions(responses: any[]): boolean {
-    return responses.some(response => 
-      response.questions?.type === 'essay' || response.questions?.type === 'matching'
+  private hasEssayQuestions(
+    responses: Array<{ questions?: { type?: string } }>
+  ): boolean {
+    return responses.some(
+      (response) =>
+        response.questions?.type === 'essay' ||
+        response.questions?.type === 'matching'
     )
   }
 
   /**
    * Get exam results with filtering
    */
-  async getExamResults(filters: ResultsFilters = {}, options: {
-    page?: number
-    limit?: number
-    sortBy?: string
-    sortOrder?: 'asc' | 'desc'
-    includeDetails?: boolean
-  } = {}): Promise<{
+  async getExamResults(
+    filters: ResultsFilters = {},
+    options: {
+      page?: number
+      limit?: number
+      sortBy?: string
+      sortOrder?: 'asc' | 'desc'
+      includeDetails?: boolean
+    } = {}
+  ): Promise<{
     success: boolean
     results?: ExamResultWithDetails[]
     totalCount?: number
@@ -242,19 +266,24 @@ export class ResultsService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      let query = supabase
-        .from('exam_results')
-        .select(`
+      let query = supabase.from('exam_results').select(
+        `
           *,
-          ${options.includeDetails ? `
+          ${
+            options.includeDetails
+              ? `
             exam_sessions(
               *,
               exams(title, duration)
             ),
             user_profiles(first_name, last_name, email),
             exams(title, total_points)
-          ` : ''}
-        `, { count: 'exact' })
+          `
+              : ''
+          }
+        `,
+        { count: 'exact' }
+      )
 
       // Apply filters
       if (filters.examId) {
@@ -301,12 +330,12 @@ export class ResultsService {
       return {
         success: true,
         results: results || [],
-        totalCount: count || 0
+        totalCount: count || 0,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -325,14 +354,16 @@ export class ResultsService {
       // Get all results for the exam
       const { data: results, error: resultsError } = await supabase
         .from('exam_results')
-        .select(`
+        .select(
+          `
           *,
           exam_sessions(started_at, completed_at),
           question_responses(
             *,
             questions(id, title, type, correct_answer)
           )
-        `)
+        `
+        )
         .eq('exam_id', examId)
 
       if (resultsError) {
@@ -353,18 +384,27 @@ export class ResultsService {
             timeAnalytics: {
               averageCompletionTime: 0,
               fastestCompletion: 0,
-              slowestCompletion: 0
-            }
-          }
+              slowestCompletion: 0,
+            },
+          },
         }
       }
 
       // Calculate basic stats
       const totalAttempts = results.length
-      const completedAttempts = results.filter(r => r.percentage_score !== null).length
-      const averageScore = results.reduce((sum, r) => sum + (r.percentage_score || 0), 0) / completedAttempts
-      const averageTimeSpent = results.reduce((sum, r) => sum + (r.time_spent || 0), 0) / completedAttempts
-      const passRate = (results.filter(r => (r.percentage_score || 0) >= 60).length / completedAttempts) * 100
+      const completedAttempts = results.filter(
+        (r) => r.percentage_score !== null
+      ).length
+      const averageScore =
+        results.reduce((sum, r) => sum + (r.percentage_score || 0), 0) /
+        completedAttempts
+      const averageTimeSpent =
+        results.reduce((sum, r) => sum + (r.time_spent || 0), 0) /
+        completedAttempts
+      const passRate =
+        (results.filter((r) => (r.percentage_score || 0) >= 60).length /
+          completedAttempts) *
+        100
 
       // Score distribution
       const scoreRanges = [
@@ -372,29 +412,34 @@ export class ResultsService {
         { min: 21, max: 40, label: '21-40%' },
         { min: 41, max: 60, label: '41-60%' },
         { min: 61, max: 80, label: '61-80%' },
-        { min: 81, max: 100, label: '81-100%' }
+        { min: 81, max: 100, label: '81-100%' },
       ]
 
-      const scoreDistribution = scoreRanges.map(range => {
-        const count = results.filter(r => 
-          (r.percentage_score || 0) >= range.min && (r.percentage_score || 0) <= range.max
+      const scoreDistribution = scoreRanges.map((range) => {
+        const count = results.filter(
+          (r) =>
+            (r.percentage_score || 0) >= range.min &&
+            (r.percentage_score || 0) <= range.max
         ).length
         return {
           range: range.label,
           count,
-          percentage: completedAttempts > 0 ? (count / completedAttempts) * 100 : 0
+          percentage:
+            completedAttempts > 0 ? (count / completedAttempts) * 100 : 0,
         }
       })
 
       // Time analytics
       const completionTimes = results
-        .map(r => r.time_spent || 0)
-        .filter(t => t > 0)
+        .map((r) => r.time_spent || 0)
+        .filter((t) => t > 0)
 
       const timeAnalytics = {
         averageCompletionTime: averageTimeSpent,
-        fastestCompletion: completionTimes.length > 0 ? Math.min(...completionTimes) : 0,
-        slowestCompletion: completionTimes.length > 0 ? Math.max(...completionTimes) : 0
+        fastestCompletion:
+          completionTimes.length > 0 ? Math.min(...completionTimes) : 0,
+        slowestCompletion:
+          completionTimes.length > 0 ? Math.max(...completionTimes) : 0,
       }
 
       // Question analytics (simplified - would need more complex analysis)
@@ -410,13 +455,13 @@ export class ResultsService {
           passRate,
           scoreDistribution,
           questionAnalytics,
-          timeAnalytics
-        }
+          timeAnalytics,
+        },
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -437,20 +482,23 @@ export class ResultsService {
     return {
       success: result.success,
       results: result.results,
-      error: result.error
+      error: result.error,
     }
   }
 
   /**
    * Update exam result (for manual grading)
    */
-  async updateExamResult(resultId: string, updates: {
-    totalScore?: number
-    percentageScore?: number
-    gradedAt?: string
-    gradedBy?: string
-    graderNotes?: string
-  }): Promise<{
+  async updateExamResult(
+    resultId: string,
+    updates: {
+      totalScore?: number
+      percentageScore?: number
+      gradedAt?: string
+      gradedBy?: string
+      graderNotes?: string
+    }
+  ): Promise<{
     success: boolean
     result?: ExamResult
     error?: string
@@ -466,7 +514,7 @@ export class ResultsService {
           graded_at: updates.gradedAt || new Date().toISOString(),
           graded_by: updates.gradedBy,
           grader_notes: updates.graderNotes,
-          requires_manual_grading: false
+          requires_manual_grading: false,
         })
         .eq('id', resultId)
         .select()
@@ -478,19 +526,21 @@ export class ResultsService {
 
       return {
         success: true,
-        result
+        result,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
 }
 
 // Factory function
-export function createResultsService(options?: ResultsServiceOptions): ResultsService {
+export function createResultsService(
+  options?: ResultsServiceOptions
+): ResultsService {
   return new ResultsService(options)
 }
 

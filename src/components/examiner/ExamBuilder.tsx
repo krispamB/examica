@@ -1,26 +1,27 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { 
-  Save, 
-  Plus, 
-  Trash2, 
-  GripVertical, 
-  Search, 
-  Filter,
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Save,
+  Plus,
+  Trash2,
+  GripVertical,
+  Search,
   Clock,
   Shield,
   Eye,
-  Edit,
   CheckCircle,
-  X
+  X,
 } from 'lucide-react'
 import type { Question } from '@/lib/questions/service'
 import type { ExamCreateData } from '@/lib/exams/service'
+import QuestionCreationModal, {
+  type QuestionFormData,
+} from './QuestionCreationModal'
 
 interface ExamBuilderProps {
   examId?: string // For editing existing exams
-  onSave?: (exam: any) => void
+  onSave?: (exam: { id: string; title: string; description?: string }) => void
   className?: string
 }
 
@@ -43,21 +44,20 @@ interface ExamForm {
 export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   examId,
   onSave,
-  className = ''
+  className = '',
 }) => {
   const [form, setForm] = useState<ExamForm>({
     title: '',
     description: '',
     duration: 60,
     requires_verification: true,
-    questions: []
+    questions: [],
   })
 
-  const [availableQuestions, setAvailableQuestions] = useState<Question[]>([])
-  const [questionSearch, setQuestionSearch] = useState('')
-  const [questionFilters, setQuestionFilters] = useState<any>({})
+  // Removed unused state variables for cleaner code
   const [showQuestionBrowser, setShowQuestionBrowser] = useState(false)
-  
+  const [showQuestionCreator, setShowQuestionCreator] = useState(false)
+
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,11 +68,6 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
       loadExam(examId)
     }
   }, [examId])
-
-  // Load available questions
-  useEffect(() => {
-    loadAvailableQuestions()
-  }, [questionSearch, questionFilters])
 
   const loadExam = async (id: string) => {
     try {
@@ -90,39 +85,28 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         description: exam.description || '',
         duration: exam.duration,
         requires_verification: exam.requires_verification ?? true,
-        questions: exam.exam_questions?.map((eq: any) => ({
-          question_id: eq.question_id,
-          order_index: eq.order_index,
-          points: eq.points || eq.questions?.points,
-          required: eq.required ?? true,
-          question: eq.questions
-        })) || []
+        questions:
+          exam.exam_questions?.map(
+            (eq: {
+              question_id: string
+              order_index: number
+              points?: number
+              required?: boolean
+              questions?: Question
+            }) => ({
+              question_id: eq.question_id,
+              order_index: eq.order_index,
+              points: eq.points || eq.questions?.points,
+              required: eq.required ?? true,
+              question: eq.questions,
+            })
+          ) || [],
       })
     } catch (err) {
       console.error('Error loading exam:', err)
       setError(err instanceof Error ? err.message : 'Failed to load exam')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadAvailableQuestions = async () => {
-    try {
-      const params = new URLSearchParams({
-        limit: '100',
-        ...(questionSearch && { search: questionSearch }),
-        ...(questionFilters.type && { type: questionFilters.type }),
-        ...(questionFilters.difficulty && { difficulty: questionFilters.difficulty }),
-      })
-
-      const response = await fetch(`/api/questions?${params}`)
-      const data = await response.json()
-
-      if (response.ok) {
-        setAvailableQuestions(data.questions || [])
-      }
-    } catch (err) {
-      console.error('Error loading questions:', err)
     }
   }
 
@@ -146,12 +130,12 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         description: form.description.trim() || undefined,
         duration: form.duration || undefined,
         requires_verification: form.requires_verification,
-        questions: form.questions.map(q => ({
+        questions: form.questions.map((q) => ({
           question_id: q.question_id,
           order_index: q.order_index,
           points: q.points,
-          required: q.required ?? true
-        }))
+          required: q.required ?? true,
+        })),
       }
 
       const url = examId ? `/api/exams/${examId}` : '/api/exams'
@@ -183,7 +167,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   }
 
   const addQuestion = (question: Question) => {
-    if (form.questions.some(q => q.question_id === question.id)) {
+    if (form.questions.some((q) => q.question_id === question.id)) {
       return // Question already added
     }
 
@@ -192,46 +176,63 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
       order_index: form.questions.length,
       points: question.points || undefined,
       required: true,
-      question
+      question,
     }
 
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      questions: [...prev.questions, newQuestion]
+      questions: [...prev.questions, newQuestion],
     }))
   }
 
   const removeQuestion = (index: number) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       questions: prev.questions
         .filter((_, i) => i !== index)
-        .map((q, i) => ({ ...q, order_index: i })) // Reindex
+        .map((q, i) => ({ ...q, order_index: i })), // Reindex
     }))
+  }
+
+  const createQuestion = async (
+    questionData: QuestionFormData
+  ): Promise<void> => {
+    try {
+      const response = await fetch('/api/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(questionData),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create question')
+      }
+
+      const result = await response.json()
+
+      // Add the newly created question to the exam
+      if (result.question) {
+        addQuestion(result.question)
+      }
+    } catch (error) {
+      console.error('Failed to create question:', error)
+      throw error
+    }
   }
 
   const updateQuestion = (index: number, updates: Partial<ExamQuestion>) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      questions: prev.questions.map((q, i) => 
+      questions: prev.questions.map((q, i) =>
         i === index ? { ...q, ...updates } : q
-      )
+      ),
     }))
   }
 
-  const moveQuestion = (from: number, to: number) => {
-    const questions = [...form.questions]
-    const [moved] = questions.splice(from, 1)
-    questions.splice(to, 0, moved)
-    
-    // Reindex
-    const reindexed = questions.map((q, i) => ({ ...q, order_index: i }))
-    
-    setForm(prev => ({
-      ...prev,
-      questions: reindexed
-    }))
-  }
+  // moveQuestion function removed as it's not currently used
 
   const getTotalPoints = () => {
     return form.questions.reduce((sum, q) => sum + (q.points || 1), 0)
@@ -239,12 +240,18 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
 
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {
-      case 'multiple_choice': return '○'
-      case 'true_false': return '✓'
-      case 'essay': return '✍'
-      case 'fill_blank': return '___'
-      case 'matching': return '⚡'
-      default: return '?'
+      case 'multiple_choice':
+        return '○'
+      case 'true_false':
+        return '✓'
+      case 'essay':
+        return '✍'
+      case 'fill_blank':
+        return '___'
+      case 'matching':
+        return '⚡'
+      default:
+        return '?'
     }
   }
 
@@ -269,7 +276,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
               {examId ? 'Edit Exam' : 'Create New Exam'}
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              {form.questions.length} questions • {getTotalPoints()} total points
+              {form.questions.length} questions • {getTotalPoints()} total
+              points
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -311,8 +319,10 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
 
         {/* Basic Information */}
         <div className="mb-8">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-          
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Basic Information
+          </h3>
+
           <div className="grid grid-cols-1 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -321,7 +331,9 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
               <input
                 type="text"
                 value={form.title}
-                onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, title: e.target.value }))
+                }
                 placeholder="Enter exam title..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -329,10 +341,14 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
               <textarea
                 value={form.description}
-                onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, description: e.target.value }))
+                }
                 placeholder="Describe the exam, its objectives, and any special instructions..."
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -350,10 +366,14 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
                   min="1"
                   max="1440" // 24 hours max
                   value={form.duration || ''}
-                  onChange={(e) => setForm(prev => ({ 
-                    ...prev, 
-                    duration: e.target.value ? parseInt(e.target.value) : null 
-                  }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      duration: e.target.value
+                        ? parseInt(e.target.value)
+                        : null,
+                    }))
+                  }
                   placeholder="e.g., 60"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -364,10 +384,12 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
                   <input
                     type="checkbox"
                     checked={form.requires_verification}
-                    onChange={(e) => setForm(prev => ({ 
-                      ...prev, 
-                      requires_verification: e.target.checked 
-                    }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        requires_verification: e.target.checked,
+                      }))
+                    }
                     className="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500"
                   />
                   <span className="text-sm text-gray-700">
@@ -400,7 +422,10 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           ) : (
             <div className="space-y-4">
               {form.questions.map((examQuestion, index) => (
-                <div key={examQuestion.question_id} className="p-4 border border-gray-200 rounded-lg">
+                <div
+                  key={examQuestion.question_id}
+                  className="p-4 border border-gray-200 rounded-lg"
+                >
                   <div className="flex items-start gap-4">
                     {/* Drag Handle */}
                     <button className="mt-1 text-gray-400 hover:text-gray-600 cursor-grab">
@@ -416,7 +441,9 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-lg">
-                          {getQuestionTypeIcon(examQuestion.question?.type || '')}
+                          {getQuestionTypeIcon(
+                            examQuestion.question?.type || ''
+                          )}
                         </span>
                         <h4 className="font-medium text-gray-900">
                           {examQuestion.question?.title || 'Loading...'}
@@ -425,7 +452,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
                           {examQuestion.question?.type?.replace('_', ' ')}
                         </span>
                       </div>
-                      
+
                       {examQuestion.question?.content && (
                         <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                           {examQuestion.question.content}
@@ -435,15 +462,21 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
                       {/* Question Settings */}
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                          <label className="text-sm text-gray-700">Points:</label>
+                          <label className="text-sm text-gray-700">
+                            Points:
+                          </label>
                           <input
                             type="number"
                             min="0"
                             max="100"
                             value={examQuestion.points || ''}
-                            onChange={(e) => updateQuestion(index, {
-                              points: e.target.value ? parseInt(e.target.value) : undefined
-                            })}
+                            onChange={(e) =>
+                              updateQuestion(index, {
+                                points: e.target.value
+                                  ? parseInt(e.target.value)
+                                  : undefined,
+                              })
+                            }
                             className="w-16 px-2 py-1 text-sm border border-gray-300 rounded"
                           />
                         </div>
@@ -452,9 +485,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
                           <input
                             type="checkbox"
                             checked={examQuestion.required}
-                            onChange={(e) => updateQuestion(index, {
-                              required: e.target.checked
-                            })}
+                            onChange={(e) =>
+                              updateQuestion(index, {
+                                required: e.target.checked,
+                              })
+                            }
                             className="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500"
                           />
                           Required
@@ -467,7 +502,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
                       <button className="p-1 text-gray-400 hover:text-gray-600">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => removeQuestion(index)}
                         className="p-1 text-gray-400 hover:text-red-600"
                       >
@@ -488,9 +523,20 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
           isOpen={showQuestionBrowser}
           onClose={() => setShowQuestionBrowser(false)}
           onSelectQuestion={addQuestion}
-          selectedQuestionIds={form.questions.map(q => q.question_id)}
+          selectedQuestionIds={form.questions.map((q) => q.question_id)}
+          onCreateNewQuestion={() => {
+            setShowQuestionBrowser(false)
+            setShowQuestionCreator(true)
+          }}
         />
       )}
+
+      {/* Question Creation Modal */}
+      <QuestionCreationModal
+        isOpen={showQuestionCreator}
+        onClose={() => setShowQuestionCreator(false)}
+        onSave={createQuestion}
+      />
     </div>
   )
 }
@@ -501,26 +547,31 @@ interface QuestionBrowserModalProps {
   onClose: () => void
   onSelectQuestion: (question: Question) => void
   selectedQuestionIds: string[]
+  onCreateNewQuestion: () => void
 }
 
 const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
   isOpen,
   onClose,
   onSelectQuestion,
-  selectedQuestionIds
+  selectedQuestionIds,
+  onCreateNewQuestion,
 }) => {
   const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filters, setFilters] = useState<any>({})
+  const [filters, setFilters] = useState<{
+    type?: string
+    difficulty?: string
+  }>({})
 
   useEffect(() => {
     if (isOpen) {
       loadQuestions()
     }
-  }, [isOpen, search, filters])
+  }, [isOpen, loadQuestions])
 
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
@@ -541,25 +592,35 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [search, filters])
 
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {
-      case 'multiple_choice': return '○'
-      case 'true_false': return '✓'
-      case 'essay': return '✍'
-      case 'fill_blank': return '___'
-      case 'matching': return '⚡'
-      default: return '?'
+      case 'multiple_choice':
+        return '○'
+      case 'true_false':
+        return '✓'
+      case 'essay':
+        return '✍'
+      case 'fill_blank':
+        return '___'
+      case 'matching':
+        return '⚡'
+      default:
+        return '?'
     }
   }
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'easy': return 'text-green-600 bg-green-50'
-      case 'medium': return 'text-orange-600 bg-orange-50'
-      case 'hard': return 'text-red-600 bg-red-50'
-      default: return 'text-gray-600 bg-gray-50'
+      case 'easy':
+        return 'text-green-600 bg-green-50'
+      case 'medium':
+        return 'text-orange-600 bg-orange-50'
+      case 'hard':
+        return 'text-red-600 bg-red-50'
+      default:
+        return 'text-gray-600 bg-gray-50'
     }
   }
 
@@ -571,13 +632,24 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Add Questions to Exam</h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Add Questions to Exam
+            </h3>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onCreateNewQuestion}
+                className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create New Question
+              </button>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -596,10 +668,15 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
                 />
               </div>
             </div>
-            
+
             <select
               value={filters.type || ''}
-              onChange={(e) => setFilters((prev: any) => ({ ...prev, type: e.target.value || undefined }))}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  type: e.target.value || undefined,
+                }))
+              }
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Types</option>
@@ -612,7 +689,12 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
 
             <select
               value={filters.difficulty || ''}
-              onChange={(e) => setFilters((prev: any) => ({ ...prev, difficulty: e.target.value || undefined }))}
+              onChange={(e) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  difficulty: e.target.value || undefined,
+                }))
+              }
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Difficulties</option>
@@ -634,10 +716,7 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No questions found</p>
               <button
-                onClick={() => {
-                  // TODO: Implement question creation modal
-                  alert('Question creation feature coming soon! For now, you can create questions through the API or database.')
-                }}
+                onClick={onCreateNewQuestion}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -648,13 +727,13 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
             <div className="space-y-3">
               {questions.map((question) => {
                 const isSelected = selectedQuestionIds.includes(question.id)
-                
+
                 return (
                   <div
                     key={question.id}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      isSelected 
-                        ? 'border-blue-300 bg-blue-50' 
+                      isSelected
+                        ? 'border-blue-300 bg-blue-50'
                         : 'border-gray-200 hover:bg-gray-50'
                     }`}
                     onClick={() => !isSelected && onSelectQuestion(question)}
@@ -663,21 +742,23 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
                       <span className="text-lg mt-1">
                         {getQuestionTypeIcon(question.type)}
                       </span>
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-medium text-gray-900 truncate">
                             {question.title}
                           </h4>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty)}`}>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty)}`}
+                          >
                             {question.difficulty}
                           </span>
                         </div>
-                        
+
                         <p className="text-sm text-gray-600 line-clamp-2 mb-2">
                           {question.content}
                         </p>
-                        
+
                         <div className="flex items-center gap-3 text-xs text-gray-500">
                           <span>{question.type.replace('_', ' ')}</span>
                           <span>•</span>

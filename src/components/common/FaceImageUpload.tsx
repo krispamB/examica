@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import Button from '@/components/ui/Button'
 // import { validateFaceImage } from '@/lib/storage/face-images'
@@ -16,7 +17,7 @@ const FaceImageUpload: React.FC<FaceImageUploadProps> = ({
   onImageSelect,
   selectedImage,
   disabled = false,
-  className
+  className,
 }) => {
   const [dragActive, setDragActive] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -27,14 +28,15 @@ const FaceImageUpload: React.FC<FaceImageUploadProps> = ({
     if (!files || files.length === 0) return
 
     const file = files[0]
-    
+
     // Basic client-side validation
     if (!file.type.startsWith('image/')) {
       setError('Please select an image file')
       return
     }
 
-    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+    if (file.size > 5 * 1024 * 1024) {
+      // 5MB limit
       setError('Image file must be smaller than 5MB')
       return
     }
@@ -61,9 +63,9 @@ const FaceImageUpload: React.FC<FaceImageUploadProps> = ({
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-    
+
     if (disabled) return
-    
+
     const files = e.dataTransfer.files
     handleFiles(files)
   }
@@ -94,7 +96,8 @@ const FaceImageUpload: React.FC<FaceImageUploadProps> = ({
           Face Image (Optional)
         </label>
         <p className="text-sm text-secondary">
-          Upload a clear photo of the student&apos;s face for facial recognition verification.
+          Upload a clear photo of the student&apos;s face for facial recognition
+          verification.
         </p>
       </div>
 
@@ -126,9 +129,11 @@ const FaceImageUpload: React.FC<FaceImageUploadProps> = ({
         {previewUrl ? (
           <div className="space-y-4">
             <div className="relative inline-block">
-              <img
+              <Image
                 src={previewUrl}
                 alt="Face preview"
+                width={128}
+                height={128}
                 className="h-32 w-32 object-cover rounded-lg border border-border"
               />
               <button
@@ -144,7 +149,8 @@ const FaceImageUpload: React.FC<FaceImageUploadProps> = ({
               </button>
             </div>
             <p className="text-sm text-secondary">
-              {selectedImage?.name} ({Math.round((selectedImage?.size || 0) / 1024)}KB)
+              {selectedImage?.name} (
+              {Math.round((selectedImage?.size || 0) / 1024)}KB)
             </p>
           </div>
         ) : (
@@ -183,10 +189,16 @@ const FaceImageUpload: React.FC<FaceImageUploadProps> = ({
       {selectedImage && !previewUrl && (
         <div className="flex items-center justify-between bg-background-secondary px-3 py-2 rounded-md">
           <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+            <svg
+              className="w-4 h-4 text-primary"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
               <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" />
             </svg>
-            <span className="text-sm text-foreground">{selectedImage.name}</span>
+            <span className="text-sm text-foreground">
+              {selectedImage.name}
+            </span>
           </div>
           <Button
             type="button"

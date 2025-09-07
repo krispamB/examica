@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createClientClient } from '@/lib/supabase/client'
 import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type ExamSession = Tables<'exam_sessions'>
 export type ExamSessionInsert = TablesInsert<'exam_sessions'>
@@ -35,7 +36,7 @@ export interface StartExamRequest {
 export interface SubmitResponseRequest {
   sessionId: string
   questionId: string
-  response: any
+  response: string | number | boolean | string[] | Record<string, unknown>
   timeSpent?: number
 }
 
@@ -52,10 +53,11 @@ export interface ExamSessionServiceOptions {
 }
 
 export class ExamSessionService {
-  private supabase: any
+  private supabase: SupabaseClient | null
 
   constructor(options: ExamSessionServiceOptions = {}) {
-    this.supabase = options.useServerClient !== false ? null : createClientClient()
+    this.supabase =
+      options.useServerClient !== false ? null : createClientClient()
   }
 
   private async getSupabaseClient() {
@@ -68,7 +70,10 @@ export class ExamSessionService {
   /**
    * Start a new exam session for a student
    */
-  async startExamSession(userId: string, request: StartExamRequest): Promise<{
+  async startExamSession(
+    userId: string,
+    request: StartExamRequest
+  ): Promise<{
     success: boolean
     session?: ExamSessionWithDetails
     error?: string
@@ -79,7 +84,8 @@ export class ExamSessionService {
       // Verify exam exists and is active
       const { data: exam, error: examError } = await supabase
         .from('exams')
-        .select(`
+        .select(
+          `
           *,
           exam_questions(
             id,
@@ -88,7 +94,8 @@ export class ExamSessionService {
             required,
             questions(*)
           )
-        `)
+        `
+        )
         .eq('id', request.examId)
         .eq('status', 'active')
         .single()
@@ -96,7 +103,7 @@ export class ExamSessionService {
       if (examError || !exam) {
         return {
           success: false,
-          error: 'Exam not found or not active'
+          error: 'Exam not found or not active',
         }
       }
 
@@ -112,7 +119,7 @@ export class ExamSessionService {
       if (existingSession) {
         return {
           success: false,
-          error: 'You already have an active session for this exam'
+          error: 'You already have an active session for this exam',
         }
       }
 
@@ -126,7 +133,8 @@ export class ExamSessionService {
           started_at: new Date().toISOString(),
           time_limit: exam.duration ? exam.duration * 60 : null, // Convert minutes to seconds
         })
-        .select(`
+        .select(
+          `
           *,
           exams(
             *,
@@ -139,7 +147,8 @@ export class ExamSessionService {
             )
           ),
           user_profiles(first_name, last_name, email)
-        `)
+        `
+        )
         .single()
 
       if (sessionError) {
@@ -148,17 +157,19 @@ export class ExamSessionService {
 
       // Sort questions by order_index
       if (session.exams.exam_questions) {
-        session.exams.exam_questions.sort((a: any, b: any) => a.order_index - b.order_index)
+        session.exams.exam_questions.sort(
+          (a, b) => a.order_index - b.order_index
+        )
       }
 
       return {
         success: true,
-        session
+        session,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -176,7 +187,8 @@ export class ExamSessionService {
 
       const { data: session, error } = await supabase
         .from('exam_sessions')
-        .select(`
+        .select(
+          `
           *,
           exams(
             *,
@@ -190,7 +202,8 @@ export class ExamSessionService {
           ),
           user_profiles(first_name, last_name, email),
           question_responses(*)
-        `)
+        `
+        )
         .eq('id', sessionId)
         .single()
 
@@ -200,17 +213,19 @@ export class ExamSessionService {
 
       // Sort questions by order_index
       if (session.exams.exam_questions) {
-        session.exams.exam_questions.sort((a: any, b: any) => a.order_index - b.order_index)
+        session.exams.exam_questions.sort(
+          (a, b) => a.order_index - b.order_index
+        )
       }
 
       return {
         success: true,
-        session
+        session,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -237,7 +252,7 @@ export class ExamSessionService {
       if (!session) {
         return {
           success: false,
-          error: 'Session not found or not active'
+          error: 'Session not found or not active',
         }
       }
 
@@ -257,7 +272,7 @@ export class ExamSessionService {
           .update({
             response: request.response,
             time_spent: request.timeSpent || null,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
           })
           .eq('id', existingResponse.id)
           .select()
@@ -288,12 +303,12 @@ export class ExamSessionService {
 
       return {
         success: true,
-        response
+        response,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -313,7 +328,7 @@ export class ExamSessionService {
         .from('exam_sessions')
         .update({
           status: 'completed',
-          completed_at: new Date().toISOString()
+          completed_at: new Date().toISOString(),
         })
         .eq('id', sessionId)
         .eq('status', 'active')
@@ -326,12 +341,12 @@ export class ExamSessionService {
 
       return {
         success: true,
-        session
+        session,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -350,7 +365,7 @@ export class ExamSessionService {
       const { data: session, error } = await supabase
         .from('exam_sessions')
         .update({
-          status: 'paused'
+          status: 'paused',
         })
         .eq('id', sessionId)
         .eq('status', 'active')
@@ -363,12 +378,12 @@ export class ExamSessionService {
 
       return {
         success: true,
-        session
+        session,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -387,7 +402,7 @@ export class ExamSessionService {
       const { data: session, error } = await supabase
         .from('exam_sessions')
         .update({
-          status: 'active'
+          status: 'active',
         })
         .eq('id', sessionId)
         .eq('status', 'paused')
@@ -400,12 +415,12 @@ export class ExamSessionService {
 
       return {
         success: true,
-        session
+        session,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -413,7 +428,10 @@ export class ExamSessionService {
   /**
    * Terminate an exam session (forced end)
    */
-  async terminateExamSession(sessionId: string, reason?: string): Promise<{
+  async terminateExamSession(
+    sessionId: string,
+    reason?: string
+  ): Promise<{
     success: boolean
     session?: ExamSession
     error?: string
@@ -426,7 +444,7 @@ export class ExamSessionService {
         .update({
           status: 'terminated',
           completed_at: new Date().toISOString(),
-          notes: reason || 'Session terminated'
+          notes: reason || 'Session terminated',
         })
         .eq('id', sessionId)
         .in('status', ['active', 'paused'])
@@ -439,12 +457,12 @@ export class ExamSessionService {
 
       return {
         success: true,
-        session
+        session,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -452,12 +470,15 @@ export class ExamSessionService {
   /**
    * Get exam sessions with filtering
    */
-  async getExamSessions(filters: ExamSessionFilters = {}, options: {
-    page?: number
-    limit?: number
-    sortBy?: string
-    sortOrder?: 'asc' | 'desc'
-  } = {}): Promise<{
+  async getExamSessions(
+    filters: ExamSessionFilters = {},
+    options: {
+      page?: number
+      limit?: number
+      sortBy?: string
+      sortOrder?: 'asc' | 'desc'
+    } = {}
+  ): Promise<{
     success: boolean
     sessions?: ExamSessionWithDetails[]
     totalCount?: number
@@ -466,13 +487,14 @@ export class ExamSessionService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      let query = supabase
-        .from('exam_sessions')
-        .select(`
+      let query = supabase.from('exam_sessions').select(
+        `
           *,
           exams(id, title, duration),
           user_profiles(first_name, last_name, email)
-        `, { count: 'exact' })
+        `,
+        { count: 'exact' }
+      )
 
       // Apply filters
       if (filters.examId) {
@@ -513,12 +535,12 @@ export class ExamSessionService {
       return {
         success: true,
         sessions: sessions || [],
-        totalCount: count || 0
+        totalCount: count || 0,
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
@@ -543,27 +565,29 @@ export class ExamSessionService {
       // Get session with exam questions and responses
       const { data: session, error } = await supabase
         .from('exam_sessions')
-        .select(`
+        .select(
+          `
           *,
           exams(
             duration,
             exam_questions(id)
           ),
           question_responses(id, question_id)
-        `)
+        `
+        )
         .eq('id', sessionId)
         .single()
 
       if (error || !session) {
         return {
           success: false,
-          error: 'Session not found'
+          error: 'Session not found',
         }
       }
 
       const totalQuestions = session.exams.exam_questions?.length || 0
       const answeredQuestions = session.question_responses?.length || 0
-      
+
       const startTime = new Date(session.started_at).getTime()
       const currentTime = new Date().getTime()
       const timeElapsed = Math.floor((currentTime - startTime) / 1000) // seconds
@@ -573,9 +597,10 @@ export class ExamSessionService {
         timeRemaining = Math.max(0, session.time_limit - timeElapsed)
       }
 
-      const completionPercentage = totalQuestions > 0 
-        ? Math.round((answeredQuestions / totalQuestions) * 100)
-        : 0
+      const completionPercentage =
+        totalQuestions > 0
+          ? Math.round((answeredQuestions / totalQuestions) * 100)
+          : 0
 
       return {
         success: true,
@@ -584,20 +609,22 @@ export class ExamSessionService {
           answeredQuestions,
           timeElapsed,
           timeRemaining,
-          completionPercentage
-        }
+          completionPercentage,
+        },
       }
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
   }
 }
 
 // Factory function
-export function createExamSessionService(options?: ExamSessionServiceOptions): ExamSessionService {
+export function createExamSessionService(
+  options?: ExamSessionServiceOptions
+): ExamSessionService {
   return new ExamSessionService(options)
 }
 
