@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { type BaseComponentProps } from '@/types/ui'
 import { UserRole } from '@/types/auth'
 import { Json } from '@/types/database.types'
+import { getDefaultRedirectPath } from '@/lib/auth'
 
 interface InvitationAcceptanceFormProps extends BaseComponentProps {
   onSuccess?: () => void
@@ -53,19 +54,24 @@ const InvitationAcceptanceForm: React.FC<InvitationAcceptanceFormProps> = ({
       }
 
       try {
-        const { data, error } = await supabase.rpc('get_invitation_by_token', {
-          token,
-        })
+        // Query the invitation directly from the user_invitations table
+        const { data, error } = await supabase
+          .from('user_invitations')
+          .select('*')
+          .eq('invitation_token', token)
+          .eq('status', 'pending')
+          .gt('expires_at', new Date().toISOString())
+          .single()
 
         if (error) throw error
 
-        if (!data || data.length === 0) {
+        if (!data) {
           setError('Invalid or expired invitation link')
           setValidating(false)
           return
         }
 
-        setInvitation(data[0])
+        setInvitation(data)
         setValidating(false)
       } catch (err) {
         setError(
@@ -98,50 +104,45 @@ const InvitationAcceptanceForm: React.FC<InvitationAcceptanceFormProps> = ({
     setLoading(true)
 
     try {
-      // Create the user account with email confirmation
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: invitation.email,
-        password: password,
-        options: {
-          emailRedirectTo: undefined, // Disable email confirmation
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            role: invitation.role,
-            invited_by: invitation.invited_by,
-            invitation_id: invitation.id,
-            email_confirmed: true, // Mark email as confirmed since they have invitation
-          },
+      // Call our secure API endpoint to create the user
+      const response = await fetch('/api/accept-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          token: searchParams.get('token'),
+          firstName,
+          lastName,
+          password,
+        }),
       })
 
-      // Since we can't directly confirm email via signUp, we need to do it separately
-      if (!signUpError) {
-        // Get the user that was just created and confirm their email
-        const { data: userData } = await supabase.auth.getUser()
-        if (userData.user) {
-          // Use admin function to confirm email
-          await supabase.rpc('admin_confirm_user_email', {
-            user_id: userData.user.id
-          })
-        }
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to accept invitation')
       }
 
-      if (signUpError) throw signUpError
-
-      // Mark invitation as accepted
-      const { error: updateError } = await supabase
-        .from('user_invitations')
-        .update({
-          status: 'accepted',
-          accepted_at: new Date().toISOString(),
+      // Now sign in the user automatically
+      const { data: _signInData, error: signInError } =
+        await supabase.auth.signInWithPassword({
+          email: invitation.email,
+          password: password,
         })
-        .eq('id', invitation.id)
 
-      if (updateError) throw updateError
+      if (signInError) throw signInError
+
+      // Invitation is already marked as accepted by the API endpoint
 
       setSuccess(true)
       onSuccess?.()
+
+      // Redirect user to their appropriate dashboard after a brief delay
+      setTimeout(() => {
+        const redirectPath = getDefaultRedirectPath(invitation.role as UserRole)
+        router.push(redirectPath)
+      }, 2000)
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to accept invitation'
@@ -180,12 +181,9 @@ const InvitationAcceptanceForm: React.FC<InvitationAcceptanceFormProps> = ({
         <div className="bg-success-light border border-success/20 text-success px-4 py-3 rounded-md">
           <p className="font-medium">Account created successfully!</p>
           <p className="text-sm mt-1">
-            Please check your email to verify your account before signing in.
+            You are now logged in and will be redirected to your dashboard.
           </p>
         </div>
-        <Button onClick={() => router.push('/login')} variant="primary">
-          Go to Login
-        </Button>
       </div>
     )
   }

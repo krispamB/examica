@@ -565,12 +565,6 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
     difficulty?: string
   }>({})
 
-  useEffect(() => {
-    if (isOpen) {
-      loadQuestions()
-    }
-  }, [isOpen, loadQuestions])
-
   const loadQuestions = useCallback(async () => {
     try {
       setLoading(true)
@@ -593,6 +587,12 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
       setLoading(false)
     }
   }, [search, filters])
+
+  useEffect(() => {
+    if (isOpen) {
+      loadQuestions()
+    }
+  }, [isOpen, loadQuestions])
 
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {
