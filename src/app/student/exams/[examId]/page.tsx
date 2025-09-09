@@ -10,8 +10,8 @@ interface ExamPageProps {
 }
 
 export default async function ExamPage({ params }: ExamPageProps) {
-  const { examId } = params
-  
+  const { examId } = await params
+
   try {
     // Create Supabase client
     const supabase = await createClient()
@@ -57,7 +57,6 @@ export default async function ExamPage({ params }: ExamPageProps) {
         <ExamClient exam={exam} />
       </div>
     )
-
   } catch (error) {
     console.error('Exam page error:', error)
     redirect('/student/exams')
@@ -65,12 +64,12 @@ export default async function ExamPage({ params }: ExamPageProps) {
 }
 
 export async function generateMetadata({ params }: ExamPageProps) {
-  const { examId } = params
-  
+  const { examId } = await params
+
   try {
     const examService = createExamService()
     const examResult = await examService.getExam(examId)
-    
+
     if (examResult.success && examResult.exam) {
       return {
         title: `${examResult.exam.title} - Examica`,
@@ -80,7 +79,7 @@ export async function generateMetadata({ params }: ExamPageProps) {
   } catch (error) {
     console.error('Generate metadata error:', error)
   }
-  
+
   return {
     title: 'Exam - Examica',
     description: 'Take your exam',

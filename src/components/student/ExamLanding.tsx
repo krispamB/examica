@@ -1,7 +1,14 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Play, Clock, FileText, AlertTriangle, CheckCircle, Camera } from 'lucide-react'
+import {
+  Play,
+  Clock,
+  FileText,
+  AlertTriangle,
+  CheckCircle,
+  Camera,
+} from 'lucide-react'
 import Button from '@/components/ui/Button'
 import FaceCaptureCamera from '@/components/common/FaceCaptureCamera'
 import type { ExamWithQuestions } from '@/lib/exams/service'
@@ -19,28 +26,18 @@ interface VerificationResult {
   error?: string
 }
 
-const ExamLanding: React.FC<ExamLandingProps> = ({
-  exam,
-  onStartExam
-}) => {
-  const [step, setStep] = useState<'overview' | 'verification' | 'starting'>('overview')
-  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null)
+const ExamLanding: React.FC<ExamLandingProps> = ({ exam, onStartExam }) => {
+  const [step, setStep] = useState<'overview' | 'verification' | 'starting'>(
+    'overview'
+  )
+  const [verificationResult, setVerificationResult] =
+    useState<VerificationResult | null>(null)
   const [isStarting, setIsStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleCaptureComplete = async (imageBlob: Blob) => {
+  const handleCaptureComplete = async (base64: string) => {
     try {
       setError(null)
-      
-      // Convert blob to base64
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          const result = reader.result as string
-          resolve(result.split(',')[1]) // Remove data:image/jpeg;base64, prefix
-        }
-        reader.readAsDataURL(imageBlob)
-      })
 
       // Verify identity
       const response = await fetch('/api/verify-identity', {
@@ -59,15 +56,21 @@ const ExamLanding: React.FC<ExamLandingProps> = ({
         throw new Error(data.error || 'Verification failed')
       }
 
-      setVerificationResult(data.result)
+      const result = {
+        success: data.verification.success,
+        similarity: data.verification.similarity,
+        verified: data.verification.success,
+        message: data.verification.message,
+      }
 
-      if (data.result.verified) {
+      setVerificationResult(result)
+
+      if (result.verified) {
         // Proceed to start exam
         setTimeout(() => {
           handleStartExam()
         }, 2000) // Show success message for 2 seconds
       }
-
     } catch (err) {
       console.error('Verification error:', err)
       setError(err instanceof Error ? err.message : 'Verification failed')
@@ -100,7 +103,6 @@ const ExamLanding: React.FC<ExamLandingProps> = ({
       }
 
       onStartExam(data.session.id)
-
     } catch (err) {
       console.error('Start exam error:', err)
       setError(err instanceof Error ? err.message : 'Failed to start exam')
@@ -123,7 +125,9 @@ const ExamLanding: React.FC<ExamLandingProps> = ({
       <div className="bg-background rounded-lg border border-border p-8">
         {/* Exam Header */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">{exam.title}</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            {exam.title}
+          </h1>
           {exam.description && (
             <p className="text-secondary text-lg">{exam.description}</p>
           )}
@@ -158,29 +162,37 @@ const ExamLanding: React.FC<ExamLandingProps> = ({
 
         {/* Requirements */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold text-foreground mb-4">Exam Requirements</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
+            Exam Requirements
+          </h3>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 bg-primary-light text-primary rounded-full flex items-center justify-center text-xs font-bold">
                 ✓
               </div>
-              <span className="text-foreground">Complete all questions within the time limit</span>
+              <span className="text-foreground">
+                Complete all questions within the time limit
+              </span>
             </div>
-            
+
             {exam.requires_verification && (
               <div className="flex items-center gap-3">
                 <div className="w-6 h-6 bg-warning-light text-warning rounded-full flex items-center justify-center text-xs">
                   <Camera className="w-3 h-3" />
                 </div>
-                <span className="text-foreground">Facial verification required before starting</span>
+                <span className="text-foreground">
+                  Facial verification required before starting
+                </span>
               </div>
             )}
-            
+
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 bg-info-light text-info rounded-full flex items-center justify-center text-xs font-bold">
                 !
               </div>
-              <span className="text-foreground">Maintain academic integrity throughout the exam</span>
+              <span className="text-foreground">
+                Maintain academic integrity throughout the exam
+              </span>
             </div>
           </div>
         </div>
@@ -217,7 +229,9 @@ const ExamLanding: React.FC<ExamLandingProps> = ({
             className="px-8 py-3"
           >
             <Play className="w-5 h-5 mr-2" />
-            {exam.requires_verification ? 'Proceed to Verification' : 'Start Exam'}
+            {exam.requires_verification
+              ? 'Proceed to Verification'
+              : 'Start Exam'}
           </Button>
         </div>
       </div>
@@ -229,38 +243,49 @@ const ExamLanding: React.FC<ExamLandingProps> = ({
       <div className="bg-background rounded-lg border border-border p-8">
         <div className="text-center mb-8">
           <Camera className="w-12 h-12 text-primary mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-foreground mb-2">Identity Verification</h2>
+          <h2 className="text-xl font-bold text-foreground mb-2">
+            Identity Verification
+          </h2>
           <p className="text-secondary">
-            Please take a clear photo of your face to verify your identity before starting the exam.
+            Please take a clear photo of your face to verify your identity
+            before starting the exam.
           </p>
         </div>
 
         {/* Verification Result */}
         {verificationResult && (
-          <div className={`mb-6 p-4 rounded-lg border ${
-            verificationResult.verified
-              ? 'bg-success-light border-success/20'
-              : 'bg-error-light border-error/20'
-          }`}>
+          <div
+            className={`mb-6 p-4 rounded-lg border ${
+              verificationResult.verified
+                ? 'bg-success-light border-success/20'
+                : 'bg-error-light border-error/20'
+            }`}
+          >
             <div className="flex items-center gap-2 mb-2">
               {verificationResult.verified ? (
                 <CheckCircle className="w-5 h-5 text-success" />
               ) : (
                 <AlertTriangle className="w-5 h-5 text-error" />
               )}
-              <span className={`font-medium ${
-                verificationResult.verified ? 'text-success' : 'text-error'
-              }`}>
-                {verificationResult.verified ? 'Verification Successful' : 'Verification Failed'}
+              <span
+                className={`font-medium ${
+                  verificationResult.verified ? 'text-success' : 'text-error'
+                }`}
+              >
+                {verificationResult.verified
+                  ? 'Verification Successful'
+                  : 'Verification Failed'}
               </span>
             </div>
-            <p className={`text-sm ${
-              verificationResult.verified ? 'text-success' : 'text-error'
-            }`}>
-              {verificationResult.message || 
-               (verificationResult.verified 
-                 ? 'Starting exam in a moment...' 
-                 : 'Please try again or contact support.')}
+            <p
+              className={`text-sm ${
+                verificationResult.verified ? 'text-success' : 'text-error'
+              }`}
+            >
+              {verificationResult.message ||
+                (verificationResult.verified
+                  ? 'Starting exam in a moment...'
+                  : 'Please try again or contact support.')}
             </p>
             {!verificationResult.verified && (
               <p className="text-xs text-secondary mt-1">
@@ -284,8 +309,8 @@ const ExamLanding: React.FC<ExamLandingProps> = ({
         {/* Face Capture */}
         {!verificationResult?.verified && (
           <FaceCaptureCamera
-            onCaptureComplete={handleCaptureComplete}
-            disabled={!!verificationResult && !verificationResult.verified}
+            onCapture={handleCaptureComplete}
+            isLoading={!!verificationResult && !verificationResult.verified}
           />
         )}
 
@@ -311,8 +336,12 @@ const ExamLanding: React.FC<ExamLandingProps> = ({
     <div className="max-w-2xl mx-auto p-6">
       <div className="bg-background rounded-lg border border-border p-8 text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <h2 className="text-xl font-bold text-foreground mb-2">Starting Your Exam</h2>
-        <p className="text-secondary">Please wait while we prepare your exam session...</p>
+        <h2 className="text-xl font-bold text-foreground mb-2">
+          Starting Your Exam
+        </h2>
+        <p className="text-secondary">
+          Please wait while we prepare your exam session...
+        </p>
       </div>
     </div>
   )

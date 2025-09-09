@@ -159,8 +159,8 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
         .from('exam_sessions')
         .insert({
           exam_id: exam.id,
-          user_id: userProfile.id,
-          status: 'in_progress',
+          user_id: user.id, // Use authenticated user ID instead of userProfile.id
+          status: 'active', // Use 'active' instead of 'in_progress'
           started_at: new Date().toISOString(),
           time_remaining: exam.duration ? exam.duration * 60 : null, // Convert minutes to seconds
           current_question_index: 0,
@@ -174,7 +174,10 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
         .single()
 
       if (sessionError || !session) {
-        throw new Error('Failed to create exam session')
+        console.error('Exam session creation error:', sessionError)
+        throw new Error(
+          sessionError?.message || 'Failed to create exam session'
+        )
       }
 
       // Stop camera if it was started
