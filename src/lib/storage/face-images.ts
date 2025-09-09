@@ -236,19 +236,35 @@ export async function convertFileToBase64(file: File): Promise<string> {
 export async function urlToBase64(imageUrl: string): Promise<string> {
   try {
     const response = await fetch(imageUrl)
-    const blob = await response.blob()
 
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result as string
-        const base64Data = result.split(',')[1]
-        resolve(base64Data)
-      }
-      reader.onerror = () =>
-        reject(new Error('Failed to convert URL to base64'))
-      reader.readAsDataURL(blob)
-    })
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch image: ${response.status} ${response.statusText}`
+      )
+    }
+
+    // Check if we're in a Node.js environment (server-side)
+    if (typeof window === 'undefined') {
+      // Server-side: use Buffer
+      const arrayBuffer = await response.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      return buffer.toString('base64')
+    } else {
+      // Client-side: use FileReader
+      const blob = await response.blob()
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          const base64Data = result.split(',')[1]
+          resolve(base64Data)
+        }
+        reader.onerror = () =>
+          reject(new Error('Failed to convert URL to base64'))
+        reader.readAsDataURL(blob)
+      })
+    }
   } catch (error) {
     throw new Error(`Failed to fetch and convert image: ${error}`)
   }

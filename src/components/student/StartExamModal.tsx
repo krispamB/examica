@@ -97,14 +97,13 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
           const base64 = reader.result as string
 
           // Call facial verification API
-          const response = await fetch('/api/verify-face', {
+          const response = await fetch('/api/verify-identity', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              userId: userProfile?.id,
-              image: base64.split(',')[1], // Remove data:image/jpeg;base64, prefix
+              liveCaptureBase64: base64.split(',')[1], // Remove data:image/jpeg;base64, prefix
             }),
           })
 
@@ -114,13 +113,16 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
             throw new Error(result.error || 'Verification failed')
           }
 
-          if (result.verified) {
+          if (result.verification && result.verification.success) {
             setVerificationStep('success')
             setTimeout(() => {
               handleStartExam()
             }, 1500)
           } else {
-            throw new Error('Facial verification failed. Please try again.')
+            const errorMessage =
+              result.verification?.message ||
+              'Facial verification failed. Please try again.'
+            throw new Error(errorMessage)
           }
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Verification failed')
