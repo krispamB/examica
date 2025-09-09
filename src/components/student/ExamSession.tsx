@@ -49,18 +49,6 @@ const ExamSession: React.FC<ExamSessionProps> = ({
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Load session data
-  useEffect(() => {
-    loadSession()
-    startProgressUpdates()
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-      if (progressIntervalRef.current)
-        clearInterval(progressIntervalRef.current)
-    }
-  }, [loadSession, startProgressUpdates])
-
   const loadSession = useCallback(async () => {
     try {
       const response = await fetch(`/api/exam-sessions/${sessionId}`)
@@ -109,8 +97,69 @@ const ExamSession: React.FC<ExamSessionProps> = ({
 
   const startProgressUpdates = useCallback(() => {
     loadProgress()
-    progressIntervalRef.current = setInterval(loadProgress, 5000) // Update every 5 seconds
+    // Update every 30 seconds instead of 5 seconds to reduce server load
+    progressIntervalRef.current = setInterval(loadProgress, 30000)
   }, [loadProgress])
+
+  const stopProgressUpdates = useCallback(() => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+  }, [])
+
+  // Load session data
+  useEffect(() => {
+    loadSession()
+    startProgressUpdates()
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      stopProgressUpdates() // Use the cleanup function
+    }
+  }, [loadSession, startProgressUpdates, stopProgressUpdates])
+
+  const handleCompleteSession = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/exam-sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'complete' }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to complete session')
+      }
+
+      stopProgressUpdates() // Stop polling when exam completes
+      onSessionComplete()
+    } catch (err) {
+      console.error('Complete session error:', err)
+      setError(
+        err instanceof Error ? err.message : 'Failed to complete session'
+      )
+    }
+  }, [sessionId, onSessionComplete, stopProgressUpdates])
+
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+  }
+
+  const handleTimeUp = useCallback(async () => {
+    stopTimer()
+    try {
+      await handleCompleteSession()
+    } catch (err) {
+      console.error('Auto-complete session error:', err)
+    }
+  }, [handleCompleteSession])
 
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
@@ -127,13 +176,6 @@ const ExamSession: React.FC<ExamSessionProps> = ({
     }, 1000)
   }, [handleTimeUp])
 
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-  }
-
   useEffect(() => {
     if (!isPaused && timeLeft !== null && session?.status === 'active') {
       startTimer()
@@ -143,15 +185,6 @@ const ExamSession: React.FC<ExamSessionProps> = ({
 
     return stopTimer
   }, [isPaused, timeLeft, session?.status, startTimer])
-
-  const handleTimeUp = useCallback(async () => {
-    stopTimer()
-    try {
-      await handleCompleteSession()
-    } catch (err) {
-      console.error('Auto-complete session error:', err)
-    }
-  }, [handleCompleteSession])
 
   const handleResponseChange = (questionId: string, response: unknown) => {
     setResponses((prev) => ({
@@ -218,40 +251,19 @@ const ExamSession: React.FC<ExamSessionProps> = ({
 
       setIsPaused(!isPaused)
       if (isPaused) {
+        // Resuming exam
         startTimer()
+        startProgressUpdates()
       } else {
+        // Pausing exam
         stopTimer()
+        stopProgressUpdates()
       }
     } catch (err) {
       console.error('Pause/Resume error:', err)
       setError(err instanceof Error ? err.message : 'Failed to update session')
     }
   }
-
-  const handleCompleteSession = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/exam-sessions/${sessionId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'complete' }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to complete session')
-      }
-
-      onSessionComplete()
-    } catch (err) {
-      console.error('Complete session error:', err)
-      setError(
-        err instanceof Error ? err.message : 'Failed to complete session'
-      )
-    }
-  }, [sessionId, onSessionComplete])
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
@@ -273,125 +285,220 @@ const ExamSession: React.FC<ExamSessionProps> = ({
     const questionId = question.id
     const currentResponse = responses[questionId] || ''
 
-    switch (question.type) {
-      case 'multiple_choice':
-        return (
-          <div className="space-y-3">
-            {question.options?.map((option: string, index: number) => (
-              <label
-                key={index}
-                className="flex items-center space-x-3 cursor-pointer"
+    try {
+      switch (question.type) {
+        case 'multiple_choice':
+          // Validate that options exists and is an array
+          if (!question.options || !Array.isArray(question.options)) {
+            console.warn(
+              `Multiple choice question ${questionId} has invalid options:`,
+              question.options
+            )
+            return (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 text-sm">
+                  ⚠️ This question has invalid options and cannot be displayed
+                  properly. Please contact your instructor.
+                </p>
+              </div>
+            )
+          }
+
+          // Check if options array is empty
+          if (question.options.length === 0) {
+            console.warn(
+              `Multiple choice question ${questionId} has no options`
+            )
+            return (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-yellow-800 text-sm">
+                  ⚠️ This question has no answer options available.
+                </p>
+              </div>
+            )
+          }
+
+          try {
+            return (
+              <div className="space-y-3">
+                {question.options.map(
+                  (
+                    option:
+                      | string
+                      | { id: string; text: string; isCorrect: boolean },
+                    index: number
+                  ) => {
+                    // Handle both string arrays and object arrays
+                    const optionText =
+                      typeof option === 'string'
+                        ? option
+                        : option?.text || `Option ${index + 1}`
+                    const optionValue =
+                      typeof option === 'string'
+                        ? option
+                        : option?.text || `option_${index}`
+
+                    return (
+                      <label
+                        key={index}
+                        className="flex items-center space-x-3 cursor-pointer"
+                      >
+                        <input
+                          type="radio"
+                          name={questionId}
+                          value={optionValue}
+                          checked={currentResponse === optionValue}
+                          onChange={(e) => {
+                            handleResponseChange(questionId, e.target.value)
+                            submitResponse(questionId, e.target.value)
+                          }}
+                          className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
+                        />
+                        <span className="text-foreground">{optionText}</span>
+                      </label>
+                    )
+                  }
+                )}
+              </div>
+            )
+          } catch (error) {
+            console.error(
+              `Error rendering multiple choice options for question ${questionId}:`,
+              error
+            )
+            return (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 text-sm">
+                  ⚠️ Error displaying question options. Please try refreshing
+                  the page.
+                </p>
+              </div>
+            )
+          }
+
+        case 'true_false':
+          return (
+            <div className="space-y-3">
+              {['True', 'False'].map((option) => (
+                <label
+                  key={option}
+                  className="flex items-center space-x-3 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name={questionId}
+                    value={option.toLowerCase()}
+                    checked={currentResponse === option.toLowerCase()}
+                    onChange={(e) => {
+                      handleResponseChange(questionId, e.target.value)
+                      submitResponse(questionId, e.target.value)
+                    }}
+                    className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
+                  />
+                  <span className="text-foreground">{option}</span>
+                </label>
+              ))}
+            </div>
+          )
+
+        case 'essay':
+          return (
+            <div className="space-y-3">
+              <textarea
+                value={currentResponse}
+                onChange={(e) =>
+                  handleResponseChange(questionId, e.target.value)
+                }
+                onBlur={() => submitResponse(questionId, currentResponse)}
+                placeholder="Enter your essay response here..."
+                rows={8}
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-vertical"
+              />
+              <Button
+                onClick={() => submitResponse(questionId, currentResponse)}
+                disabled={isSubmitting}
+                size="sm"
+                className="ml-auto"
               >
-                <input
-                  type="radio"
-                  name={questionId}
-                  value={option}
-                  checked={currentResponse === option}
-                  onChange={(e) => {
-                    handleResponseChange(questionId, e.target.value)
-                    submitResponse(questionId, e.target.value)
-                  }}
-                  className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
-                />
-                <span className="text-foreground">{option}</span>
-              </label>
-            ))}
-          </div>
-        )
+                <Send className="w-4 h-4 mr-1" />
+                Save Response
+              </Button>
+            </div>
+          )
 
-      case 'true_false':
-        return (
-          <div className="space-y-3">
-            {['True', 'False'].map((option) => (
-              <label
-                key={option}
-                className="flex items-center space-x-3 cursor-pointer"
+        case 'fill_blank':
+          return (
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={currentResponse}
+                onChange={(e) =>
+                  handleResponseChange(questionId, e.target.value)
+                }
+                onBlur={() => submitResponse(questionId, currentResponse)}
+                placeholder="Enter your answer here..."
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+              />
+              <Button
+                onClick={() => submitResponse(questionId, currentResponse)}
+                disabled={isSubmitting}
+                size="sm"
+                className="ml-auto"
               >
-                <input
-                  type="radio"
-                  name={questionId}
-                  value={option.toLowerCase()}
-                  checked={currentResponse === option.toLowerCase()}
-                  onChange={(e) => {
-                    handleResponseChange(questionId, e.target.value)
-                    submitResponse(questionId, e.target.value)
-                  }}
-                  className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
-                />
-                <span className="text-foreground">{option}</span>
-              </label>
-            ))}
-          </div>
-        )
+                <Send className="w-4 h-4 mr-1" />
+                Save Response
+              </Button>
+            </div>
+          )
 
-      case 'essay':
-        return (
-          <div className="space-y-3">
-            <textarea
-              value={currentResponse}
-              onChange={(e) => handleResponseChange(questionId, e.target.value)}
-              onBlur={() => submitResponse(questionId, currentResponse)}
-              placeholder="Enter your essay response here..."
-              rows={8}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-vertical"
-            />
-            <Button
-              onClick={() => submitResponse(questionId, currentResponse)}
-              disabled={isSubmitting}
-              size="sm"
-              className="ml-auto"
-            >
-              <Send className="w-4 h-4 mr-1" />
-              Save Response
-            </Button>
-          </div>
-        )
-
-      case 'fill_blank':
-        return (
-          <div className="space-y-3">
-            <input
-              type="text"
-              value={currentResponse}
-              onChange={(e) => handleResponseChange(questionId, e.target.value)}
-              onBlur={() => submitResponse(questionId, currentResponse)}
-              placeholder="Enter your answer here..."
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-            />
-            <Button
-              onClick={() => submitResponse(questionId, currentResponse)}
-              disabled={isSubmitting}
-              size="sm"
-              className="ml-auto"
-            >
-              <Send className="w-4 h-4 mr-1" />
-              Save Response
-            </Button>
-          </div>
-        )
-
-      default:
-        return (
-          <div className="space-y-3">
-            <textarea
-              value={currentResponse}
-              onChange={(e) => handleResponseChange(questionId, e.target.value)}
-              onBlur={() => submitResponse(questionId, currentResponse)}
-              placeholder="Enter your response here..."
-              rows={4}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-vertical"
-            />
-            <Button
-              onClick={() => submitResponse(questionId, currentResponse)}
-              disabled={isSubmitting}
-              size="sm"
-              className="ml-auto"
-            >
-              <Send className="w-4 h-4 mr-1" />
-              Save Response
-            </Button>
-          </div>
-        )
+        default:
+          return (
+            <div className="space-y-3">
+              <textarea
+                value={currentResponse}
+                onChange={(e) =>
+                  handleResponseChange(questionId, e.target.value)
+                }
+                onBlur={() => submitResponse(questionId, currentResponse)}
+                placeholder="Enter your response here..."
+                rows={4}
+                className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-vertical"
+              />
+              <Button
+                onClick={() => submitResponse(questionId, currentResponse)}
+                disabled={isSubmitting}
+                size="sm"
+                className="ml-auto"
+              >
+                <Send className="w-4 h-4 mr-1" />
+                Save Response
+              </Button>
+            </div>
+          )
+      }
+    } catch (error) {
+      console.error(
+        `Error rendering question ${questionId} of type ${question.type}:`,
+        error
+      )
+      return (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 text-sm">
+            ⚠️ Error displaying this question. Please try refreshing the page or
+            contact your instructor.
+          </p>
+          <details className="mt-2">
+            <summary className="text-xs text-red-600 cursor-pointer">
+              Technical Details
+            </summary>
+            <pre className="text-xs text-red-600 mt-1 whitespace-pre-wrap">
+              Question ID: {questionId}
+              Type: {question.type}
+              Error: {error instanceof Error ? error.message : String(error)}
+            </pre>
+          </details>
+        </div>
+      )
     }
   }
 

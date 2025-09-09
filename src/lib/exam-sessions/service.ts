@@ -324,6 +324,41 @@ export class ExamSessionService {
     try {
       const supabase = await this.getSupabaseClient()
 
+      // First, check the current session status
+      const { data: currentSession, error: fetchError } = await supabase
+        .from('exam_sessions')
+        .select('id, status, completed_at')
+        .eq('id', sessionId)
+        .single()
+
+      if (fetchError) {
+        throw new Error(fetchError.message)
+      }
+
+      if (!currentSession) {
+        return {
+          success: false,
+          error: 'Session not found',
+        }
+      }
+
+      // If already completed, return success with current session
+      if (currentSession.status === 'completed') {
+        return {
+          success: true,
+          session: currentSession as ExamSession,
+        }
+      }
+
+      // If not active, cannot complete
+      if (currentSession.status !== 'active') {
+        return {
+          success: false,
+          error: `Cannot complete session with status: ${currentSession.status}`,
+        }
+      }
+
+      // Now update the session to completed
       const { data: session, error } = await supabase
         .from('exam_sessions')
         .update({
