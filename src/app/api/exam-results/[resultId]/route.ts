@@ -3,15 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 import { createResultsService } from '@/lib/results/service'
 
 interface Context {
-  params: {
+  params: Promise<{
     resultId: string
-  }
+  }>
 }
 
 // GET /api/exam-results/[resultId] - Get specific result
 export async function GET(request: NextRequest, context: Context) {
   try {
-    const { resultId } = context.params
+    const { resultId } = await context.params
     const supabase = await createClient()
 
     // Get current user
@@ -82,7 +82,7 @@ export async function GET(request: NextRequest, context: Context) {
 // PATCH /api/exam-results/[resultId] - Update result (manual grading)
 export async function PATCH(request: NextRequest, context: Context) {
   try {
-    const { resultId } = context.params
+    const { resultId } = await context.params
     const supabase = await createClient()
 
     // Get current user
