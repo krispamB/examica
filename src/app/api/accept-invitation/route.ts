@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { UserRole } from '@/types/auth'
+import { moveFaceImageFromTemp } from '@/lib/storage/face-images'
 
 interface AcceptInvitationRequest {
   token: string
@@ -167,19 +168,83 @@ export async function POST(request: NextRequest) {
       // Don't fail the request since user was created successfully
     }
 
-    // Create user profile record
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .insert({
+    // Handle face image migration from temp to final location
+    let finalFaceImageUrl = invitation.user_metadata?.face_image_url
+
+    console.log('Invitation face image URL:', finalFaceImageUrl)
+
+    if (finalFaceImageUrl && finalFaceImageUrl.includes('temp-')) {
+      console.log('Starting face image migration process...')
+      try {
+        const migrationResult = await moveFaceImageFromTemp(
+          finalFaceImageUrl,
+          userData.user.id,
+          true // use server client
+        )
+
+        if (migrationResult.success && migrationResult.url) {
+          finalFaceImageUrl = migrationResult.url
+          console.log(
+            `Successfully migrated face image for user ${userData.user.id}`
+          )
+          console.log('New image URL:', finalFaceImageUrl)
+
+          // Only cleanup temp file if migration was successful
+          try {
+            console.log(
+              'Attempting to cleanup temp file after successful migration...'
+            )
+            const url = new URL(invitation.user_metadata?.face_image_url)
+            const pathParts = url.pathname.split('/')
+            const tempPath = pathParts.slice(-2).join('/') // Get temp-id/filename
+
+            const { error: cleanupError } = await supabase.storage
+              .from('face-images')
+              .remove([tempPath])
+
+            if (cleanupError) {
+              console.warn('Failed to cleanup temp file:', cleanupError)
+            } else {
+              console.log('Successfully cleaned up temp file:', tempPath)
+            }
+          } catch (cleanupError) {
+            console.warn('Temp file cleanup error:', cleanupError)
+          }
+        } else {
+          console.warn(`Failed to migrate face image: ${migrationResult.error}`)
+          console.warn(
+            'Using temp URL as fallback - temp file will remain for verification'
+          )
+          // Keep the temp URL as fallback AND keep the temp file for verification
+        }
+      } catch (error) {
+        console.warn('Face image migration error:', error)
+        console.warn('Using temp URL as fallback for now')
+        // Continue with temp URL - it will still work for verification
+      }
+    } else {
+      console.log('No face image migration needed:', {
+        hasUrl: !!finalFaceImageUrl,
+        isTemp: finalFaceImageUrl?.includes('temp-'),
+      })
+    }
+
+    // Create user profile record (use upsert to handle duplicates)
+    const { error: profileError } = await supabase.from('user_profiles').upsert(
+      {
         id: userData.user.id,
         email: invitation.email,
         first_name: sanitizedFirstName,
         last_name: sanitizedLastName,
         role: invitation.role as UserRole,
-        face_image_url: invitation.user_metadata?.face_image_url,
+        face_image_url: finalFaceImageUrl,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      })
+      },
+      {
+        onConflict: 'id',
+      }
+    )
 
     if (profileError) {
       console.error('Profile creation error:', profileError)
