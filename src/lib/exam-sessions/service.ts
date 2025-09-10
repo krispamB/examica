@@ -131,7 +131,7 @@ export class ExamSessionService {
           exam_id: request.examId,
           status: 'active',
           started_at: new Date().toISOString(),
-          time_limit: exam.duration ? exam.duration * 60 : null, // Convert minutes to seconds
+          time_remaining: exam.duration ? exam.duration * 60 : null, // Convert minutes to seconds
         })
         .select(
           `
@@ -641,8 +641,8 @@ export class ExamSessionService {
       const timeElapsed = Math.floor((currentTime - startTime) / 1000) // seconds
 
       let timeRemaining: number | null = null
-      if (session.time_limit) {
-        timeRemaining = Math.max(0, session.time_limit - timeElapsed)
+      if (session.time_remaining) {
+        timeRemaining = Math.max(0, session.time_remaining - timeElapsed)
       }
 
       const completionPercentage =
