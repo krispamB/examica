@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, context: Context) {
           exams(title, description)
         ),
         user_profiles(first_name, last_name, email),
-        exams(title, total_points)
+        exams(title)
       `
       )
       .eq('id', resultId)

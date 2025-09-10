@@ -374,6 +374,19 @@ export class ExamSessionService {
         throw new Error(error.message)
       }
 
+      // Automatically calculate exam results after completion
+      try {
+        const { createResultsService } = await import('@/lib/results/service')
+        const resultsService = createResultsService()
+        await resultsService.calculateExamResult(sessionId)
+      } catch (resultError) {
+        // Log the error but don't fail the completion
+        console.warn(
+          'Failed to calculate exam result automatically:',
+          resultError
+        )
+      }
+
       return {
         success: true,
         session,

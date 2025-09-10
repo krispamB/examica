@@ -35,6 +35,7 @@ const navigationConfig: Record<string, NavigationItem[]> = {
     { name: 'Dashboard', href: '/examiner' },
     { name: 'My Exams', href: '/examiner/exams' },
     { name: 'Create Exam', href: '/examiner/create' },
+    { name: 'Exam Results', href: '/examiner/results' },
     { name: 'Students', href: '/examiner/students' },
     { name: 'Analytics', href: '/examiner/analytics' },
   ],

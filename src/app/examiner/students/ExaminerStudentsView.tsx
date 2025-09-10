@@ -23,14 +23,16 @@ interface StudentSummary {
 }
 
 const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
-  userId
+  userId,
 }) => {
   const [students, setStudents] = useState<StudentSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [filterStatus, setFilterStatus] = useState<
+    'all' | 'active' | 'inactive'
+  >('all')
 
   useEffect(() => {
     loadStudentsData()
@@ -56,10 +58,10 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
 
       // Build student summaries from results
       const studentMap = new Map<string, StudentSummary>()
-      
+
       resultsData.forEach((result: ExamResultWithDetails) => {
         const studentId = result.user_id
-        const student = result.user_profiles
+        const student = result.exam_sessions?.user_profiles
 
         if (!student) return
 
@@ -72,28 +74,39 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
             totalAttempts: 0,
             averageScore: 0,
             lastExamDate: null,
-            passRate: 0
+            passRate: 0,
           })
         }
 
         const studentSummary = studentMap.get(studentId)!
         studentSummary.totalAttempts++
-        
+
         // Update last exam date
-        if (!studentSummary.lastExamDate || result.submitted_at > studentSummary.lastExamDate) {
+        if (
+          !studentSummary.lastExamDate ||
+          result.submitted_at > studentSummary.lastExamDate
+        ) {
           studentSummary.lastExamDate = result.submitted_at
         }
       })
 
       // Calculate averages and pass rates
       studentMap.forEach((student) => {
-        const studentResults = resultsData.filter((r: ExamResultWithDetails) => r.user_id === student.id)
-        
+        const studentResults = resultsData.filter(
+          (r: ExamResultWithDetails) => r.user_id === student.id
+        )
+
         if (studentResults.length > 0) {
-          const totalScore = studentResults.reduce((sum: number, r: ExamResultWithDetails) => sum + (r.percentage_score || 0), 0)
+          const totalScore = studentResults.reduce(
+            (sum: number, r: ExamResultWithDetails) =>
+              sum + (r.percentage_score || 0),
+            0
+          )
           student.averageScore = totalScore / studentResults.length
-          
-          const passedExams = studentResults.filter((r: ExamResultWithDetails) => (r.percentage_score || 0) >= 60).length
+
+          const passedExams = studentResults.filter(
+            (r: ExamResultWithDetails) => (r.percentage_score || 0) >= 60
+          ).length
           student.passRate = (passedExams / studentResults.length) * 100
         }
       })
@@ -101,26 +114,33 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
       setStudents(Array.from(studentMap.values()))
     } catch (err) {
       console.error('Load students data error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load student data')
+      setError(
+        err instanceof Error ? err.message : 'Failed to load student data'
+      )
     } finally {
       setIsLoading(false)
     }
   }
 
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = `${student.first_name} ${student.last_name} ${student.email}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-    
+  const filteredStudents = students.filter((student) => {
+    const matchesSearch =
+      `${student.first_name} ${student.last_name} ${student.email}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+
     let matchesFilter = true
     if (filterStatus === 'active') {
-      matchesFilter = student.lastExamDate && 
-        new Date(student.lastExamDate) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+      matchesFilter =
+        student.lastExamDate &&
+        new Date(student.lastExamDate) >
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
     } else if (filterStatus === 'inactive') {
-      matchesFilter = !student.lastExamDate ||
-        new Date(student.lastExamDate) <= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      matchesFilter =
+        !student.lastExamDate ||
+        new Date(student.lastExamDate) <=
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     }
-    
+
     return matchesSearch && matchesFilter
   })
 
@@ -153,19 +173,19 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
     return (
       <div className="text-center py-12">
         <Users className="w-12 h-12 text-error mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-foreground mb-2">Error Loading Students</h3>
+        <h3 className="text-lg font-medium text-foreground mb-2">
+          Error Loading Students
+        </h3>
         <p className="text-secondary mb-6">{error}</p>
-        <Button onClick={loadStudentsData}>
-          Try Again
-        </Button>
+        <Button onClick={loadStudentsData}>Try Again</Button>
       </div>
     )
   }
 
   // Show student detail view
   if (selectedStudent) {
-    const student = students.find(s => s.id === selectedStudent)
-    
+    const student = students.find((s) => s.id === selectedStudent)
+
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -176,7 +196,7 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
           >
             ← Back to Students
           </Button>
-          
+
           {student && (
             <div>
               <h2 className="text-xl font-semibold text-foreground">
@@ -206,10 +226,12 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
             className="w-full pl-10 pr-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
           />
         </div>
-        
+
         <select
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
+          onChange={(e) =>
+            setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')
+          }
           className="px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
         >
           <option value="all">All Students</option>
@@ -223,16 +245,22 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
         <div className="bg-background rounded-lg border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Users className="w-5 h-5 text-primary" />
-            <span className="text-sm font-medium text-secondary">Total Students</span>
+            <span className="text-sm font-medium text-secondary">
+              Total Students
+            </span>
           </div>
-          <div className="text-2xl font-bold text-foreground">{students.length}</div>
+          <div className="text-2xl font-bold text-foreground">
+            {students.length}
+          </div>
           <div className="text-xs text-secondary">Enrolled</div>
         </div>
 
         <div className="bg-background rounded-lg border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <FileText className="w-5 h-5 text-info" />
-            <span className="text-sm font-medium text-secondary">Total Attempts</span>
+            <span className="text-sm font-medium text-secondary">
+              Total Attempts
+            </span>
           </div>
           <div className="text-2xl font-bold text-foreground">
             {students.reduce((sum, s) => sum + s.totalAttempts, 0)}
@@ -243,12 +271,18 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
         <div className="bg-background rounded-lg border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Trophy className="w-5 h-5 text-success" />
-            <span className="text-sm font-medium text-secondary">Avg Score</span>
+            <span className="text-sm font-medium text-secondary">
+              Avg Score
+            </span>
           </div>
           <div className="text-2xl font-bold text-foreground">
-            {students.length > 0 
-              ? (students.reduce((sum, s) => sum + s.averageScore, 0) / students.length).toFixed(1)
-              : 0}%
+            {students.length > 0
+              ? (
+                  students.reduce((sum, s) => sum + s.averageScore, 0) /
+                  students.length
+                ).toFixed(1)
+              : 0}
+            %
           </div>
           <div className="text-xs text-secondary">Overall average</div>
         </div>
@@ -256,12 +290,18 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
         <div className="bg-background rounded-lg border border-border p-4">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-5 h-5 text-warning" />
-            <span className="text-sm font-medium text-secondary">Pass Rate</span>
+            <span className="text-sm font-medium text-secondary">
+              Pass Rate
+            </span>
           </div>
           <div className="text-2xl font-bold text-foreground">
-            {students.length > 0 
-              ? (students.reduce((sum, s) => sum + s.passRate, 0) / students.length).toFixed(1)
-              : 0}%
+            {students.length > 0
+              ? (
+                  students.reduce((sum, s) => sum + s.passRate, 0) /
+                  students.length
+                ).toFixed(1)
+              : 0}
+            %
           </div>
           <div className="text-xs text-secondary">≥60% threshold</div>
         </div>
@@ -279,10 +319,12 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
           <div className="text-center py-12">
             <Users className="w-12 h-12 text-secondary mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {searchTerm || filterStatus !== 'all' ? 'No Students Found' : 'No Students Yet'}
+              {searchTerm || filterStatus !== 'all'
+                ? 'No Students Found'
+                : 'No Students Yet'}
             </h3>
             <p className="text-secondary">
-              {searchTerm || filterStatus !== 'all' 
+              {searchTerm || filterStatus !== 'all'
                 ? 'Try adjusting your search or filter criteria'
                 : 'Students will appear here once they start taking exams'}
             </p>
@@ -292,17 +334,32 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
             <table className="w-full">
               <thead className="bg-background-secondary">
                 <tr>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Student</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Attempts</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Avg Score</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Pass Rate</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Last Exam</th>
-                  <th className="text-right px-6 py-3 text-sm font-medium text-secondary">Actions</th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Student
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Attempts
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Avg Score
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Pass Rate
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Last Exam
+                  </th>
+                  <th className="text-right px-6 py-3 text-sm font-medium text-secondary">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-background-secondary">
+                  <tr
+                    key={student.id}
+                    className="hover:bg-background-secondary"
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-primary-light text-primary rounded-full flex items-center justify-center text-sm font-medium">
@@ -312,36 +369,44 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
                           <div className="text-sm font-medium text-foreground">
                             {student.first_name} {student.last_name}
                           </div>
-                          <div className="text-xs text-secondary">{student.email}</div>
+                          <div className="text-xs text-secondary">
+                            {student.email}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-foreground">{student.totalAttempts}</div>
-                      <div className="text-xs text-secondary">exam attempts</div>
+                      <div className="text-sm font-medium text-foreground">
+                        {student.totalAttempts}
+                      </div>
+                      <div className="text-xs text-secondary">
+                        exam attempts
+                      </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
-                      <div className={`text-sm font-medium ${getScoreColor(student.averageScore)}`}>
+                      <div
+                        className={`text-sm font-medium ${getScoreColor(student.averageScore)}`}
+                      >
                         {student.averageScore.toFixed(1)}%
                       </div>
                       <div className="text-xs text-secondary">average</div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-foreground">
                         {student.passRate.toFixed(1)}%
                       </div>
                       <div className="text-xs text-secondary">passed</div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="text-sm text-foreground">
                         {formatDate(student.lastExamDate)}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4 text-right">
                       <Button
                         onClick={() => setSelectedStudent(student.id)}

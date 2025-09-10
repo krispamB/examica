@@ -27,10 +27,6 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
   const [selectedResult, setSelectedResult] =
     useState<ExamResultWithDetails | null>(null)
 
-  useEffect(() => {
-    loadResults()
-  }, [loadResults])
-
   const loadResults = useCallback(async () => {
     try {
       setError(null)
@@ -55,6 +51,10 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
       setIsLoading(false)
     }
   }, [userId])
+
+  useEffect(() => {
+    loadResults()
+  }, [loadResults])
 
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)

@@ -8,15 +8,15 @@ export type ExamResult = Tables<'exam_results'>
 export type ExamResultInsert = TablesInsert<'exam_results'>
 
 export interface ExamResultWithDetails extends ExamResult {
-  exam_sessions: ExamSessionWithDetails
-  user_profiles: {
-    first_name: string
-    last_name: string
-    email: string
+  exam_sessions: ExamSessionWithDetails & {
+    user_profiles: {
+      first_name: string
+      last_name: string
+      email: string
+    }
   }
   exams: {
     title: string
-    total_points: number
   }
 }
 
@@ -274,10 +274,10 @@ export class ResultsService {
               ? `
             exam_sessions(
               *,
-              exams(title, duration)
+              exams(title, duration),
+              user_profiles(first_name, last_name, email)
             ),
-            user_profiles(first_name, last_name, email),
-            exams(title, total_points)
+            exams(title)
           `
               : ''
           }
@@ -351,16 +351,20 @@ export class ResultsService {
     try {
       const supabase = await this.getSupabaseClient()
 
-      // Get all results for the exam
+      // Get all results for the exam with proper relationship through exam_sessions
       const { data: results, error: resultsError } = await supabase
         .from('exam_results')
         .select(
           `
           *,
-          exam_sessions(started_at, completed_at),
-          question_responses(
-            *,
-            questions(id, title, type, correct_answer)
+          exam_sessions(
+            id,
+            started_at, 
+            completed_at,
+            question_responses(
+              *,
+              questions(id, title, type, correct_answer)
+            )
           )
         `
         )
@@ -371,20 +375,80 @@ export class ResultsService {
       }
 
       if (!results || results.length === 0) {
+        // Fallback to session-based analytics when no results exist yet
+        const { data: sessions, error: sessionError } = await supabase
+          .from('exam_sessions')
+          .select(
+            `
+            *,
+            question_responses(
+              *,
+              questions(id, title, type, correct_answer)
+            )
+          `
+          )
+          .eq('exam_id', examId)
+          .eq('status', 'completed')
+
+        if (sessionError || !sessions || sessions.length === 0) {
+          return {
+            success: true,
+            analytics: {
+              totalAttempts: 0,
+              completedAttempts: 0,
+              averageScore: 0,
+              averageTimeSpent: 0,
+              passRate: 0,
+              scoreDistribution: [],
+              questionAnalytics: [],
+              timeAnalytics: {
+                averageCompletionTime: 0,
+                fastestCompletion: 0,
+                slowestCompletion: 0,
+              },
+            },
+          }
+        }
+
+        // Calculate basic analytics from sessions when results don't exist
+        const totalAttempts = sessions.length
+        const completedAttempts = sessions.length
+
+        const completionTimes = sessions
+          .map((s) => {
+            if (s.started_at && s.completed_at) {
+              return Math.floor(
+                (new Date(s.completed_at).getTime() -
+                  new Date(s.started_at).getTime()) /
+                  1000
+              )
+            }
+            return 0
+          })
+          .filter((t) => t > 0)
+
+        const averageTimeSpent =
+          completionTimes.length > 0
+            ? completionTimes.reduce((sum, t) => sum + t, 0) /
+              completionTimes.length
+            : 0
+
         return {
           success: true,
           analytics: {
-            totalAttempts: 0,
-            completedAttempts: 0,
-            averageScore: 0,
-            averageTimeSpent: 0,
-            passRate: 0,
+            totalAttempts,
+            completedAttempts,
+            averageScore: 0, // Cannot calculate without exam results
+            averageTimeSpent,
+            passRate: 0, // Cannot calculate without exam results
             scoreDistribution: [],
             questionAnalytics: [],
             timeAnalytics: {
-              averageCompletionTime: 0,
-              fastestCompletion: 0,
-              slowestCompletion: 0,
+              averageCompletionTime: averageTimeSpent,
+              fastestCompletion:
+                completionTimes.length > 0 ? Math.min(...completionTimes) : 0,
+              slowestCompletion:
+                completionTimes.length > 0 ? Math.max(...completionTimes) : 0,
             },
           },
         }
@@ -481,7 +545,7 @@ export class ResultsService {
 
     return {
       success: result.success,
-      results: result.results,
+      results: result.results || [],
       error: result.error,
     }
   }
