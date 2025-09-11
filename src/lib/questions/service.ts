@@ -408,8 +408,10 @@ export class QuestionService {
         stats.byType[q.type] = (stats.byType[q.type] || 0) + 1
 
         // Count by difficulty
-        stats.byDifficulty[q.difficulty] =
-          (stats.byDifficulty[q.difficulty] || 0) + 1
+        if (q.difficulty) {
+          stats.byDifficulty[q.difficulty] =
+            (stats.byDifficulty[q.difficulty] || 0) + 1
+        }
 
         // Count AI generated
         if (q.ai_generated) {

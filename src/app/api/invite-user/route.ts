@@ -22,18 +22,18 @@ export async function POST(request: NextRequest) {
     // Parse request body - could be JSON or FormData
     let body: InviteUserRequest
     const contentType = request.headers.get('content-type') || ''
-    
+
     if (contentType.includes('multipart/form-data')) {
       // Handle FormData (with file upload)
       const formData = await request.formData()
-      
+
       body = {
         email: formData.get('email') as string,
         role: formData.get('role') as UserRole,
-        firstName: formData.get('firstName') as string || undefined,
-        lastName: formData.get('lastName') as string || undefined,
-        institutionId: formData.get('institutionId') as string || undefined,
-        faceImage: formData.get('faceImage') as File || undefined,
+        firstName: (formData.get('firstName') as string) || undefined,
+        lastName: (formData.get('lastName') as string) || undefined,
+        institutionId: (formData.get('institutionId') as string) || undefined,
+        faceImage: (formData.get('faceImage') as File) || undefined,
       }
     } else {
       // Handle JSON (no file upload)
@@ -89,9 +89,13 @@ export async function POST(request: NextRequest) {
         // Generate a temporary user ID for the face image storage
         // We'll update the user profile with this URL after they accept the invitation
         const tempUserId = `temp-${invitationToken}`
-        
-        const uploadResult = await uploadFaceImage(body.faceImage, tempUserId, true)
-        
+
+        const uploadResult = await uploadFaceImage(
+          body.faceImage,
+          tempUserId,
+          true
+        )
+
         if (uploadResult.success && uploadResult.url) {
           faceImageUrl = uploadResult.url
         } else {
@@ -117,7 +121,7 @@ export async function POST(request: NextRequest) {
           last_name: body.lastName,
           face_image_url: faceImageUrl,
         },
-        institution_id: body.institutionId,
+        institution_id: body.institutionId || null,
         // Expires in 7 days
         expires_at: new Date(
           Date.now() + 7 * 24 * 60 * 60 * 1000
@@ -135,6 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send invitation email
+    console.log(`Attempting to send invitation email to ${body.email}`)
     const emailResult = await sendInvitationEmail({
       email: body.email,
       token: invitationToken,
@@ -142,7 +147,13 @@ export async function POST(request: NextRequest) {
       recipientName: body.firstName
         ? `${body.firstName} ${body.lastName || ''}`.trim()
         : undefined,
-      institutionName: process.env.INSTITUTION_NAME || 'Examica Institution'
+      institutionName: process.env.INSTITUTION_NAME || 'Examica Institution',
+    })
+
+    console.log('Email send result:', {
+      success: emailResult.success,
+      messageId: emailResult.messageId,
+      error: emailResult.error,
     })
 
     if (!emailResult.success) {
@@ -157,11 +168,13 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', invitation.id)
 
-      // Still return success since invitation was created, but warn about email
+      // For email provider issues, still return success since invitation was created
+      // The user can be notified through other means or the email can be resent
       return NextResponse.json({
         success: true,
         invitationId: invitation.id,
         warning: 'Invitation created but email delivery failed',
+        emailError: emailResult.error,
       })
     }
 
@@ -173,6 +186,8 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', invitation.id)
+
+    console.log(`Invitation email sent successfully to ${body.email}`)
 
     return NextResponse.json({
       success: true,

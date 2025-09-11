@@ -59,9 +59,10 @@ export async function inviteUser(
       formData.append('role', userData.role)
       if (userData.firstName) formData.append('firstName', userData.firstName)
       if (userData.lastName) formData.append('lastName', userData.lastName)
-      if (userData.institutionId) formData.append('institutionId', userData.institutionId)
+      if (userData.institutionId)
+        formData.append('institutionId', userData.institutionId)
       formData.append('faceImage', userData.faceImage)
-      
+
       body = formData
       // Don't set Content-Type header - browser will set it with boundary
     } else {
@@ -119,7 +120,7 @@ export async function inviteUserServer(
           first_name: userData.firstName,
           last_name: userData.lastName,
         },
-        institution_id: userData.institutionId,
+        institution_id: userData.institutionId || null,
       })
       .select()
       .single()

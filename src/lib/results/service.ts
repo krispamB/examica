@@ -176,7 +176,7 @@ export class ResultsService {
         maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0
       const timeSpent = this.calculateTimeSpent(
         session.started_at,
-        session.completed_at
+        session.completed_at || null
       )
 
       // Create exam result
@@ -194,7 +194,11 @@ export class ResultsService {
           time_spent: timeSpent,
           submitted_at: session.completed_at || new Date().toISOString(),
           requires_manual_grading: this.hasEssayQuestions(
-            session.question_responses || []
+            (session.question_responses || []).map(
+              (r: { questions?: { type?: string } }) => ({
+                questions: r.questions ? { type: r.questions.type } : undefined,
+              })
+            )
           ),
         })
         .select()
@@ -329,7 +333,7 @@ export class ResultsService {
 
       return {
         success: true,
-        results: results || [],
+        results: (results as unknown as ExamResultWithDetails[]) || [],
         totalCount: count || 0,
       }
     } catch (error) {
@@ -545,8 +549,8 @@ export class ResultsService {
 
     return {
       success: result.success,
-      results: result.results || [],
-      error: result.error,
+      results: result.results || undefined,
+      error: result.error || undefined,
     }
   }
 
@@ -576,8 +580,8 @@ export class ResultsService {
           total_score: updates.totalScore,
           percentage_score: updates.percentageScore,
           graded_at: updates.gradedAt || new Date().toISOString(),
-          graded_by: updates.gradedBy,
-          grader_notes: updates.graderNotes,
+          graded_by: updates.gradedBy || null,
+          grader_notes: updates.graderNotes || null,
           requires_manual_grading: false,
         })
         .eq('id', resultId)
