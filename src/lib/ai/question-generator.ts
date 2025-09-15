@@ -68,28 +68,18 @@ class AIQuestionGenerator {
     const startTime = Date.now()
 
     try {
-      // Determine which AI service to use
-      const useAnthropic =
-        this.config.ANTHROPIC_API_KEY &&
-        !this.config.ANTHROPIC_API_KEY.includes('your_')
-      const useOpenAI =
-        this.config.OPENAI_API_KEY &&
-        !this.config.OPENAI_API_KEY.includes('your_')
+      // Check if OpenRouter is configured
+      const useOpenRouter =
+        this.config.OPENROUTER_API_KEY &&
+        !this.config.OPENROUTER_API_KEY.includes('your_')
 
-      if (!useAnthropic && !useOpenAI) {
+      if (!useOpenRouter) {
         throw new Error(
-          'No AI service configured. Please set ANTHROPIC_API_KEY or OPENAI_API_KEY'
+          'No AI service configured. Please set OPENROUTER_API_KEY'
         )
       }
 
-      let result: QuestionGenerationResult
-
-      if (useAnthropic) {
-        result = await this.generateWithAnthropic(request)
-      } else {
-        result = await this.generateWithOpenAI(request)
-      }
-
+      const result = await this.generateWithOpenRouter(request)
       result.metadata.generation_time = Date.now() - startTime
       return result
     } catch (error) {
@@ -105,90 +95,45 @@ class AIQuestionGenerator {
     }
   }
 
-  private async generateWithAnthropic(
+  private async generateWithOpenRouter(
     request: QuestionGenerationRequest
   ): Promise<QuestionGenerationResult> {
     const prompt = this.buildPrompt(request)
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.config.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
-        max_tokens: 2000,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-      }),
-    })
+    const response = await fetch(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.config.OPENROUTER_API_KEY}`,
+          'HTTP-Referer': this.config.APP_URL,
+          'X-Title': this.config.APP_NAME,
+        },
+        body: JSON.stringify({
+          model: 'openai/gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          max_tokens: 2000,
+          temperature: 0.7,
+        }),
+      }
+    )
 
     if (!response.ok) {
       const error = await response.text()
-      throw new Error(`Anthropic API error: ${error}`)
-    }
-
-    const data = await response.json()
-    const content = data.content[0]?.text || ''
-
-    const questions = this.parseQuestionsFromResponse(content, request, {
-      model: 'claude-3-sonnet',
-      prompt,
-      generated_at: new Date().toISOString(),
-      tokens_used: data.usage?.output_tokens,
-    })
-
-    return {
-      success: true,
-      questions,
-      metadata: {
-        model_used: 'claude-3-sonnet',
-        total_tokens: data.usage?.input_tokens + data.usage?.output_tokens,
-        generation_time: 0, // Will be set by caller
-      },
-    }
-  }
-
-  private async generateWithOpenAI(
-    request: QuestionGenerationRequest
-  ): Promise<QuestionGenerationResult> {
-    const prompt = this.buildPrompt(request)
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.config.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        max_tokens: 2000,
-        temperature: 0.7,
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`OpenAI API error: ${error}`)
+      throw new Error(`OpenRouter API error: ${error}`)
     }
 
     const data = await response.json()
     const content = data.choices[0]?.message?.content || ''
 
     const questions = this.parseQuestionsFromResponse(content, request, {
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       prompt,
       generated_at: new Date().toISOString(),
       tokens_used: data.usage?.completion_tokens,
@@ -198,7 +143,7 @@ class AIQuestionGenerator {
       success: true,
       questions,
       metadata: {
-        model_used: 'gpt-3.5-turbo',
+        model_used: 'gpt-4o-mini',
         total_tokens: data.usage?.total_tokens,
         generation_time: 0, // Will be set by caller
       },
@@ -310,7 +255,12 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
   private parseQuestionsFromResponse(
     content: string,
     request: QuestionGenerationRequest,
-    aiMetadata: { model: string; prompt: string; response: string }
+    aiMetadata: {
+      model: string
+      prompt: string
+      generated_at: string
+      tokens_used?: number
+    }
   ): GeneratedQuestion[] {
     try {
       // Extract JSON from the response (handle markdown code blocks)
@@ -340,7 +290,10 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
         points: q.points || this.getDefaultPoints(request.difficulty),
         category: q.category || request.subject || request.topic,
         tags: Array.isArray(q.tags) ? q.tags : [request.topic],
-        ai_metadata: aiMetadata,
+        ai_metadata: {
+          ...aiMetadata,
+          raw_content: content,
+        },
       }))
     } catch (error) {
       console.error('Failed to parse AI response:', error)

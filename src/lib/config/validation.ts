@@ -8,24 +8,27 @@ export interface EnvironmentConfig {
   // Next.js
   APP_NAME: string
   APP_URL: string
-  
+
   // Supabase
   SUPABASE_URL: string
   SUPABASE_ANON_KEY: string
   SUPABASE_SERVICE_ROLE_KEY: string
-  
+
   // AWS Rekognition
   AWS_REGION: string
   AWS_ACCESS_KEY_ID: string
   AWS_SECRET_ACCESS_KEY: string
-  
+
   // Storage
   FACE_IMAGES_BUCKET: string
-  
+
   // Facial Recognition Thresholds
   SIMILARITY_THRESHOLD: number
   CONFIDENCE_THRESHOLD: number
-  
+
+  // AI Services
+  OPENROUTER_API_KEY: string
+
   // Email
   RESEND_API_KEY: string
 }
@@ -38,6 +41,7 @@ const REQUIRED_ENV_VARS = [
   'AWS_REGION',
   'AWS_ACCESS_KEY_ID',
   'AWS_SECRET_ACCESS_KEY',
+  'OPENROUTER_API_KEY',
   'RESEND_API_KEY',
 ] as const
 
@@ -54,7 +58,7 @@ export function validateEnvironment(): ConfigValidationResult {
   const warnings: string[] = []
 
   // Check required environment variables
-  REQUIRED_ENV_VARS.forEach(envVar => {
+  REQUIRED_ENV_VARS.forEach((envVar) => {
     const value = process.env[envVar]
     if (!value || value.trim() === '') {
       errors.push(`Missing required environment variable: ${envVar}`)
@@ -62,20 +66,28 @@ export function validateEnvironment(): ConfigValidationResult {
   })
 
   // Validate specific environment variables
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL && 
-      !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('https://')) {
+  if (
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    !process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith('https://')
+  ) {
     errors.push('NEXT_PUBLIC_SUPABASE_URL must be a valid HTTPS URL')
   }
 
-  if (process.env.NEXT_PUBLIC_APP_URL && 
-      !process.env.NEXT_PUBLIC_APP_URL.startsWith('http')) {
+  if (
+    process.env.NEXT_PUBLIC_APP_URL &&
+    !process.env.NEXT_PUBLIC_APP_URL.startsWith('http')
+  ) {
     errors.push('NEXT_PUBLIC_APP_URL must be a valid HTTP/HTTPS URL')
   }
 
   // Check AWS region format
-  if (process.env.AWS_REGION && 
-      !/^[a-z]{2}-[a-z]+-\d{1}$/.test(process.env.AWS_REGION)) {
-    warnings.push('AWS_REGION format may be invalid (expected: us-east-1, eu-west-1, etc.)')
+  if (
+    process.env.AWS_REGION &&
+    !/^[a-z]{2}-[a-z]+-\d{1}$/.test(process.env.AWS_REGION)
+  ) {
+    warnings.push(
+      'AWS_REGION format may be invalid (expected: us-east-1, eu-west-1, etc.)'
+    )
   }
 
   // Validate thresholds
@@ -104,7 +116,10 @@ export function validateEnvironment(): ConfigValidationResult {
   ]
 
   Object.entries(process.env).forEach(([key, value]) => {
-    if (value && checkForPlaceholders.some(placeholder => value.includes(placeholder))) {
+    if (
+      value &&
+      checkForPlaceholders.some((placeholder) => value.includes(placeholder))
+    ) {
       errors.push(`Environment variable ${key} contains placeholder value`)
     }
   })
@@ -121,24 +136,34 @@ export function getEnvironmentConfig(): EnvironmentConfig {
     // Next.js
     APP_NAME: process.env.NEXT_PUBLIC_APP_NAME || 'Examica',
     APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-    
+
     // Supabase
     SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-    
+
     // AWS Rekognition
     AWS_REGION: process.env.AWS_REGION || 'us-east-1',
     AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
-    
+
     // Storage
-    FACE_IMAGES_BUCKET: process.env.SUPABASE_STORAGE_FACE_IMAGES_BUCKET || 'face-images',
-    
+    FACE_IMAGES_BUCKET:
+      process.env.SUPABASE_STORAGE_FACE_IMAGES_BUCKET || 'face-images',
+
     // Facial Recognition Thresholds
-    SIMILARITY_THRESHOLD: parseInt(process.env.FACIAL_SIMILARITY_THRESHOLD || '80', 10),
-    CONFIDENCE_THRESHOLD: parseInt(process.env.FACIAL_CONFIDENCE_THRESHOLD || '90', 10),
-    
+    SIMILARITY_THRESHOLD: parseInt(
+      process.env.FACIAL_SIMILARITY_THRESHOLD || '80',
+      10
+    ),
+    CONFIDENCE_THRESHOLD: parseInt(
+      process.env.FACIAL_CONFIDENCE_THRESHOLD || '90',
+      10
+    ),
+
+    // AI Services
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
+
     // Email
     RESEND_API_KEY: process.env.RESEND_API_KEY || '',
   }
@@ -159,21 +184,21 @@ export function isFacialRecognitionEnabled(): boolean {
 // Log validation results on startup (only in development)
 if (process.env.NODE_ENV === 'development') {
   const validation = validateEnvironment()
-  
+
   if (!validation.valid) {
     console.error('❌ Environment configuration errors:')
-    validation.errors.forEach(error => console.error(`  - ${error}`))
+    validation.errors.forEach((error) => console.error(`  - ${error}`))
   }
-  
+
   if (validation.warnings.length > 0) {
     console.warn('⚠️ Environment configuration warnings:')
-    validation.warnings.forEach(warning => console.warn(`  - ${warning}`))
+    validation.warnings.forEach((warning) => console.warn(`  - ${warning}`))
   }
-  
+
   if (validation.valid && validation.warnings.length === 0) {
     console.log('✅ Environment configuration is valid')
   }
-  
+
   // Check facial recognition status
   if (isFacialRecognitionEnabled()) {
     console.log('🔍 Facial recognition is enabled')

@@ -224,7 +224,7 @@ export class ResultsService {
       )
 
       // Extract questions from the junction table results
-      let questions: any[] =
+      let questions: unknown[] =
         examQuestions
           ?.map((eq: { questions: unknown }) => eq.questions)
           .filter((q: unknown) => q !== null) || []
@@ -267,7 +267,12 @@ export class ResultsService {
         }
       }
 
-      const questionsMap = new Map(questions?.map((q: any) => [q.id, q]) || [])
+      const questionsMap = new Map(
+        questions?.map((q: unknown) => {
+          const question = q as { id: string }
+          return [question.id, q]
+        }) || []
+      )
       console.log(
         `Found ${questions?.length || 0} questions for ${questionIds.length} responses`
       )

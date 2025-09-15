@@ -158,7 +158,7 @@ class AnswerHashService {
           validated: Date.now(),
         },
       }
-    } catch (error) {
+    } catch {
       return {
         isCorrect: false,
         confidence: 0.0,
@@ -344,7 +344,10 @@ class AnswerHashService {
     if (typeof answer === 'object') {
       const sorted = Object.keys(answer)
         .sort()
-        .map((key) => `${key}:${this.normalizeAnswer((answer as any)[key])}`)
+        .map(
+          (key) =>
+            `${key}:${this.normalizeAnswer((answer as Record<string, unknown>)[key])}`
+        )
         .join(',')
       return sorted
     }
@@ -366,7 +369,10 @@ class AnswerHashService {
     return options.map((option) => {
       if (typeof option === 'object' && option !== null) {
         // Remove 'isCorrect' field if present
-        const { isCorrect, ...sanitized } = option as any
+        const { isCorrect: _isCorrect, ...sanitized } = option as Record<
+          string,
+          unknown
+        >
         return sanitized
       }
       return option

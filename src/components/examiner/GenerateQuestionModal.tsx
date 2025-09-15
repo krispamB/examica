@@ -168,7 +168,7 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
                 Generate Questions with AI
               </h2>
               <p className="text-sm text-gray-500">
-                Create questions using Claude or OpenAI
+                Create questions using OpenRouter GPT-4o-mini
               </p>
             </div>
           </div>

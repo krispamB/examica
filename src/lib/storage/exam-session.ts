@@ -400,7 +400,7 @@ class ExamSessionStorage {
       try {
         localStorage.setItem(key, serialized)
         return true
-      } catch (quotaError) {
+      } catch {
         console.warn('localStorage quota exceeded, trying sessionStorage')
 
         // Fallback to sessionStorage

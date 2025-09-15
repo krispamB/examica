@@ -353,7 +353,7 @@ class ExamSecurityService {
           timestamp: decoded.timestamp,
         },
       }
-    } catch (_error) {
+    } catch {
       return { valid: false, error: 'Token parsing failed' }
     }
   }

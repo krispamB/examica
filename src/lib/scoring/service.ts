@@ -305,7 +305,7 @@ export class ScoringService {
         pointsEarned: isCorrect ? maxPoints : 0,
         feedback: isCorrect ? 'Correct' : 'Incorrect',
       }
-    } catch (_error) {
+    } catch {
       return {
         isCorrect: false,
         pointsEarned: 0,
@@ -449,7 +449,7 @@ export class ScoringService {
         pointsEarned: partialPoints,
         feedback: `${correctCount}/${totalPairs} matches correct`,
       }
-    } catch (_error) {
+    } catch {
       return {
         isCorrect: null,
         pointsEarned: 0,
