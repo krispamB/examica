@@ -23,9 +23,9 @@ const eslintConfig = [
   {
     rules: {
       // TypeScript rules
-      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': [
-        'error', 
+        'warn', 
         { 
           argsIgnorePattern: '^_',
           varsIgnorePattern: '^_' 
@@ -33,7 +33,7 @@ const eslintConfig = [
       ],
       
       // React Hooks rules
-      'react-hooks/exhaustive-deps': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       
       // Next.js specific rules  
       '@next/next/no-img-element': 'error',

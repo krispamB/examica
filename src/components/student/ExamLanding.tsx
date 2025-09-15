@@ -85,6 +85,73 @@ const ExamLanding: React.FC<ExamLandingProps> = ({ exam, onStartExam }) => {
     setError(null)
 
     try {
+      console.log('ExamLanding: Starting exam process')
+
+      // Skip redundant session check - ExamClient already verified no active session exists
+      // If we're here, either no session exists or verification is needed
+
+      let sessionToUse = null
+
+      // Only check for existing sessions if verification is required
+      if (exam.requires_verification) {
+        console.log('ExamLanding: Checking for existing unverified session')
+        const checkResponse = await fetch(
+          `/api/exam-sessions?exam_id=${exam.id}&status=active`
+        )
+
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json()
+
+          if (
+            checkData.success &&
+            checkData.sessions &&
+            checkData.sessions.length > 0
+          ) {
+            // Found existing session that needs verification completion
+            const existingSession = checkData.sessions[0]
+            console.log(
+              'ExamLanding: Found existing session for verification:',
+              existingSession.id
+            )
+
+            // Update the session metadata to mark verification as completed
+            const updateResponse = await fetch(
+              `/api/exam-sessions/${existingSession.id}`,
+              {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  action: 'update_metadata',
+                  metadata: {
+                    ...existingSession.metadata,
+                    verification_completed: true,
+                  },
+                }),
+              }
+            )
+
+            const updateData = await updateResponse.json()
+
+            if (!updateResponse.ok) {
+              throw new Error(updateData.error || 'Failed to update session')
+            }
+
+            sessionToUse = existingSession.id
+          }
+        }
+      }
+
+      if (sessionToUse) {
+        // Use existing verified session
+        console.log('ExamLanding: Using existing session:', sessionToUse)
+        onStartExam(sessionToUse)
+        return
+      }
+
+      // No existing session found, create new session
+      console.log('ExamLanding: Creating new session')
       const response = await fetch('/api/exam-sessions', {
         method: 'POST',
         headers: {
@@ -102,6 +169,7 @@ const ExamLanding: React.FC<ExamLandingProps> = ({ exam, onStartExam }) => {
         throw new Error(data.error || 'Failed to start exam')
       }
 
+      console.log('ExamLanding: Created new session:', data.session.id)
       onStartExam(data.session.id)
     } catch (err) {
       console.error('Start exam error:', err)

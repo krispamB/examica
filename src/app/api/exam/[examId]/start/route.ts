@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { withExamSecurity, type ExamSessionContext } from '@/lib/middleware/examSecurity'
+import {
+  withExamSecurity,
+  type ExamSessionContext,
+} from '@/lib/middleware/examSecurity'
+import { getExamStorage } from '@/lib/redis/exam-storage'
 
 interface ExamStartRequest {
   studentConfirmation?: boolean
@@ -34,7 +38,8 @@ async function startExamHandler(
     // Get exam details and validate access
     const { data: exam, error: examError } = await supabase
       .from('exams')
-      .select(`
+      .select(
+        `
         *,
         exam_sessions!inner(
           id,
@@ -42,7 +47,8 @@ async function startExamHandler(
           started_at,
           completed_at
         )
-      `)
+      `
+      )
       .eq('id', examId)
       .eq('exam_sessions.user_id', userId)
       .single()
@@ -60,10 +66,7 @@ async function startExamHandler(
         .single()
 
       if (!examExists) {
-        return NextResponse.json(
-          { error: 'Exam not found' },
-          { status: 404 }
-        )
+        return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
       }
 
       if (examExists.status !== 'active') {
@@ -90,6 +93,39 @@ async function startExamHandler(
 
       if (sessionError) {
         throw new Error('Failed to create exam session')
+      }
+
+      // Initialize Redis session for the new exam session
+      try {
+        // Get exam details for time limit
+        const { data: examDetails } = await supabase
+          .from('exams')
+          .select('time_limit_minutes')
+          .eq('id', examId)
+          .single()
+
+        const timeLimit = examDetails?.time_limit_minutes || 60
+        const examStorage = getExamStorage()
+        const redisResult = await examStorage.initExamSession(
+          newSession.id,
+          examId,
+          timeLimit
+        )
+
+        if (!redisResult.success) {
+          console.error(
+            'Failed to initialize Redis session:',
+            redisResult.error
+          )
+          // Don't fail the entire request, but log the error
+        } else {
+          console.log(
+            `Redis session initialized for new session ${newSession.id}`
+          )
+        }
+      } catch (redisError) {
+        console.error('Redis initialization error:', redisError)
+        // Don't fail the exam start, but log the error
       }
 
       return NextResponse.json({
@@ -153,6 +189,32 @@ async function startExamHandler(
       throw new Error('Failed to start exam session')
     }
 
+    // Initialize/reinitialize Redis session for the restarted session
+    try {
+      const timeLimit = exam.time_limit_minutes || 60
+      const examStorage = getExamStorage()
+      const redisResult = await examStorage.initExamSession(
+        updatedSession.id,
+        examId,
+        timeLimit
+      )
+
+      if (!redisResult.success) {
+        console.error(
+          'Failed to initialize Redis session on restart:',
+          redisResult.error
+        )
+        // Don't fail the entire request, but log the error
+      } else {
+        console.log(
+          `Redis session initialized for restarted session ${updatedSession.id}`
+        )
+      }
+    } catch (redisError) {
+      console.error('Redis initialization error on restart:', redisError)
+      // Don't fail the exam start, but log the error
+    }
+
     return NextResponse.json({
       success: true,
       examSession: updatedSession,
@@ -169,7 +231,6 @@ async function startExamHandler(
         sessionStarted: new Date().toISOString(),
       },
     })
-
   } catch (error) {
     console.error(`Exam start error for user ${userId}, exam ${examId}:`, error)
     return NextResponse.json(

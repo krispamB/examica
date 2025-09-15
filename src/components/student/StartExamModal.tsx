@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
 import { Database } from '@/types/database.types'
@@ -26,116 +26,9 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [verificationStep, setVerificationStep] = useState<
-    'confirm' | 'verify' | 'success'
+    'confirm' | 'success'
   >('confirm')
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
-  const [verificationLoading, setVerificationLoading] = useState(false)
-
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const supabase = createClient()
-
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: 640,
-          height: 480,
-          facingMode: 'user',
-        },
-      })
-      setCameraStream(stream)
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-    } catch {
-      setError(
-        'Camera access denied. Please enable camera permissions and try again.'
-      )
-    }
-  }, [])
-
-  const stopCamera = useCallback(() => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop())
-      setCameraStream(null)
-    }
-  }, [cameraStream])
-
-  const captureImage = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current) return null
-
-    const canvas = canvasRef.current
-    const video = videoRef.current
-    const context = canvas.getContext('2d')
-
-    if (!context) return null
-
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    context.drawImage(video, 0, 0)
-
-    return new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, 'image/jpeg', 0.8)
-    })
-  }, [])
-
-  const handleFacialVerification = async () => {
-    setVerificationLoading(true)
-    setError(null)
-
-    try {
-      const imageBlob = await captureImage()
-      if (!imageBlob) {
-        throw new Error('Failed to capture image')
-      }
-
-      // Convert to base64 for API
-      const reader = new FileReader()
-      reader.onload = async () => {
-        try {
-          const base64 = reader.result as string
-
-          // Call facial verification API
-          const response = await fetch('/api/verify-identity', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              liveCaptureBase64: base64.split(',')[1], // Remove data:image/jpeg;base64, prefix
-            }),
-          })
-
-          const result = await response.json()
-
-          if (!response.ok) {
-            throw new Error(result.error || 'Verification failed')
-          }
-
-          if (result.verification && result.verification.success) {
-            setVerificationStep('success')
-            setTimeout(() => {
-              handleStartExam()
-            }, 1500)
-          } else {
-            const errorMessage =
-              result.verification?.message ||
-              'Facial verification failed. Please try again.'
-            throw new Error(errorMessage)
-          }
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Verification failed')
-        } finally {
-          setVerificationLoading(false)
-        }
-      }
-      reader.readAsDataURL(imageBlob)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to verify identity')
-      setVerificationLoading(false)
-    }
-  }
 
   const handleStartExam = async () => {
     setLoading(true)
@@ -160,13 +53,13 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
         .insert({
           exam_id: exam.id,
           user_id: user.id, // Use authenticated user ID instead of userProfile.id
-          status: 'active', // Use 'active' instead of 'in_progress'
+          status: 'active', // Always use active status
           started_at: new Date().toISOString(),
           time_remaining: exam.duration ? exam.duration * 60 : null, // Convert minutes to seconds
           current_question_index: 0,
           answers: {},
           metadata: {
-            verification_completed: exam.requires_verification,
+            verification_completed: !exam.requires_verification, // False if verification required
             started_from: 'student_portal',
           },
         })
@@ -180,9 +73,6 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
         )
       }
 
-      // Stop camera if it was started
-      stopCamera()
-
       // Redirect to exam
       window.location.href = `/student/exams/${exam.id}`
 
@@ -195,16 +85,11 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
   }
 
   const handleConfirmStart = () => {
-    if (exam.requires_verification) {
-      setVerificationStep('verify')
-      startCamera()
-    } else {
-      handleStartExam()
-    }
+    // Always go directly to start exam - verification will happen in ExamLanding
+    handleStartExam()
   }
 
   const handleClose = () => {
-    stopCamera()
     setVerificationStep('confirm')
     setError(null)
     onClose()
@@ -220,13 +105,12 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-foreground">
               {verificationStep === 'confirm' && 'Start Exam'}
-              {verificationStep === 'verify' && 'Identity Verification'}
-              {verificationStep === 'success' && 'Verification Successful'}
+              {verificationStep === 'success' && 'Starting Exam'}
             </h2>
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 text-xl font-bold"
-              disabled={loading || verificationLoading}
+              disabled={loading}
             >
               ×
             </button>
@@ -302,12 +186,11 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
               )}
 
               {exam.requires_verification && (
-                <div className="bg-warning-light border border-warning/20 text-warning-dark px-4 py-3 rounded-md">
-                  <p className="font-medium">Facial Verification Required</p>
+                <div className="bg-info-light border border-info/20 text-info-dark px-4 py-3 rounded-md">
+                  <p className="font-medium">Identity Verification Required</p>
                   <p className="text-sm mt-1">
-                    This exam requires identity verification through facial
-                    recognition. Please ensure you have good lighting and your
-                    camera is working.
+                    This exam requires facial verification. You will be prompted
+                    to verify your identity before starting the exam.
                   </p>
                 </div>
               )}
@@ -327,58 +210,7 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
                   disabled={loading}
                   className="flex-1"
                 >
-                  {exam.requires_verification ? 'Verify & Start' : 'Start Exam'}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Verification Step */}
-          {verificationStep === 'verify' && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <h3 className="font-medium text-foreground mb-2">
-                  Position yourself in front of the camera
-                </h3>
-                <p className="text-sm text-secondary mb-4">
-                  Look directly at the camera and ensure your face is clearly
-                  visible
-                </p>
-              </div>
-
-              <div className="flex justify-center">
-                <div className="relative">
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    className="w-80 h-60 bg-gray-100 rounded-lg border"
-                  />
-                  <canvas ref={canvasRef} className="hidden" />
-                  {!cameraStream && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
-                      <p className="text-gray-500">Starting camera...</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  onClick={handleClose}
-                  variant="outline"
-                  disabled={verificationLoading}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleFacialVerification}
-                  loading={verificationLoading}
-                  disabled={!cameraStream || verificationLoading}
-                  className="flex-1"
-                >
-                  Verify Identity
+                  Start Exam
                 </Button>
               </div>
             </div>
@@ -387,7 +219,7 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
           {/* Success Step */}
           {verificationStep === 'success' && (
             <div className="text-center py-8">
-              <div className="w-16 h-16 bg-success text-white rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg
                   className="w-8 h-8"
                   fill="currentColor"
@@ -400,10 +232,10 @@ const StartExamModal: React.FC<StartExamModalProps> = ({
                   />
                 </svg>
               </div>
-              <h3 className="font-medium text-success mb-2">
-                Verification Successful!
+              <h3 className="font-medium text-primary mb-2">
+                Creating Exam Session
               </h3>
-              <p className="text-sm text-secondary">Starting your exam...</p>
+              <p className="text-sm text-secondary">Redirecting to exam...</p>
             </div>
           )}
         </div>

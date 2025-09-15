@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import ExamLanding from '@/components/student/ExamLanding'
 import ExamSession from '@/components/student/ExamSession'
 import type { ExamWithQuestions } from '@/lib/exams/service'
+import type { ExamSessionWithDetails } from '@/lib/exam-sessions/service'
 
 interface ExamClientProps {
   exam: ExamWithQuestions
@@ -12,15 +13,52 @@ interface ExamClientProps {
 
 const ExamClient: React.FC<ExamClientProps> = ({ exam }) => {
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionData, setSessionData] = useState<ExamSessionWithDetails | null>(
+    null
+  )
   const [step, setStep] = useState<
     'loading' | 'landing' | 'session' | 'completed'
   >('loading')
   const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [hasCheckedSession, setHasCheckedSession] = useState(false)
   const router = useRouter()
 
-  // Check for existing active session on mount
+  const handleSessionError = useCallback(
+    (error: string) => {
+      console.error('Exam session error:', error)
+      // Redirect back to exams list
+      router.push('/student/exams')
+    },
+    [router]
+  )
+
+  // Load full session data for the exam session
+  const loadSessionData = useCallback(
+    async (sessionId: string) => {
+      try {
+        const response = await fetch(`/api/exam-sessions/${sessionId}`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load session')
+        }
+
+        setSessionData(data.session)
+        setStep('session')
+      } catch (error) {
+        console.error('Error loading session data:', error)
+        handleSessionError('Failed to load exam session')
+      }
+    },
+    [handleSessionError]
+  )
+
+  // Check for existing active session on mount - only once
   useEffect(() => {
+    if (hasCheckedSession) return
+
     const checkExistingSession = async () => {
+      console.log('ExamClient: Checking for existing session (one-time check)')
       try {
         const response = await fetch(
           `/api/exam-sessions?exam_id=${exam.id}&status=active`
@@ -33,11 +71,25 @@ const ExamClient: React.FC<ExamClientProps> = ({ exam }) => {
         const data = await response.json()
 
         if (data.success && data.sessions && data.sessions.length > 0) {
-          // Found an active session, navigate directly to it
-          const activeSession = data.sessions[0]
-          setSessionId(activeSession.id)
-          setStep('session')
+          const existingSession = data.sessions[0]
+          console.log('ExamClient: Found existing session:', existingSession.id)
+
+          // Check if verification is required and not completed
+          if (
+            exam.requires_verification &&
+            !existingSession.metadata?.verification_completed
+          ) {
+            // Session exists but needs verification, show landing page
+            setStep('landing')
+          } else {
+            // Session is verified or doesn't need verification, load session details
+            setSessionId(existingSession.id)
+            await loadSessionData(existingSession.id)
+          }
         } else {
+          console.log(
+            'ExamClient: No active session found, showing landing page'
+          )
           // No active session found, show landing page
           setStep('landing')
         }
@@ -47,15 +99,16 @@ const ExamClient: React.FC<ExamClientProps> = ({ exam }) => {
         setStep('landing')
       } finally {
         setIsCheckingSession(false)
+        setHasCheckedSession(true)
       }
     }
 
     checkExistingSession()
-  }, [exam.id])
+  }, [exam.id, exam.requires_verification, loadSessionData, hasCheckedSession])
 
-  const handleStartExam = (newSessionId: string) => {
+  const handleStartExam = async (newSessionId: string) => {
     setSessionId(newSessionId)
-    setStep('session')
+    await loadSessionData(newSessionId)
   }
 
   const handleSessionComplete = () => {
@@ -64,12 +117,6 @@ const ExamClient: React.FC<ExamClientProps> = ({ exam }) => {
     setTimeout(() => {
       router.push('/student/exams')
     }, 3000)
-  }
-
-  const handleSessionError = (error: string) => {
-    console.error('Exam session error:', error)
-    // Redirect back to exams list
-    router.push('/student/exams')
   }
 
   if (step === 'loading' || isCheckingSession) {
@@ -116,10 +163,11 @@ const ExamClient: React.FC<ExamClientProps> = ({ exam }) => {
     )
   }
 
-  if (step === 'session' && sessionId) {
+  if (step === 'session' && sessionId && sessionData) {
     return (
       <ExamSession
         sessionId={sessionId}
+        initialSession={sessionData}
         onSessionComplete={handleSessionComplete}
         onSessionError={handleSessionError}
       />

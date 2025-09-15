@@ -76,6 +76,24 @@ export class ResultsService {
   }
 
   /**
+   * Calculate and store exam results for a completed session with provided Supabase client
+   */
+  async calculateExamResultWithClient(
+    sessionId: string,
+    supabaseClient: SupabaseClient
+  ): Promise<{
+    success: boolean
+    result?: ExamResult
+    error?: string
+  }> {
+    console.log(
+      `DEBUG: calculateExamResultWithClient called for session ${sessionId}`
+    )
+    // Use the provided client instead of getting a new one
+    return this.calculateExamResultInternal(sessionId, supabaseClient)
+  }
+
+  /**
    * Calculate and store exam results for a completed session
    */
   async calculateExamResult(sessionId: string): Promise<{
@@ -83,25 +101,44 @@ export class ResultsService {
     result?: ExamResult
     error?: string
   }> {
-    try {
-      const supabase = await this.getSupabaseClient()
+    console.log(
+      `DEBUG: calculateExamResult (default) called for session ${sessionId}`
+    )
+    const supabase = await this.getSupabaseClient()
+    return this.calculateExamResultInternal(sessionId, supabase)
+  }
 
-      // Get session with questions and responses
-      const { data: session, error: sessionError } = await supabase
+  /**
+   * Internal method that does the actual calculation
+   */
+  private async calculateExamResultInternal(
+    sessionId: string,
+    providedSupabaseClient: SupabaseClient
+  ): Promise<{
+    success: boolean
+    result?: ExamResult
+    error?: string
+  }> {
+    try {
+      console.log(`Calculating exam result for session ${sessionId}`)
+
+      // Use provided authenticated client instead of service client (which has RLS issues)
+      const supabaseClient = providedSupabaseClient || (await createClient())
+      console.log(
+        'DEBUG: Using',
+        providedSupabaseClient
+          ? 'provided authenticated client'
+          : 'fallback service client'
+      )
+
+      // Get session with responses (get questions separately)
+      const { data: session, error: sessionError } = await supabaseClient
         .from('exam_sessions')
         .select(
           `
           *,
           exams(*),
-          question_responses(
-            *,
-            questions(
-              id,
-              type,
-              correct_answer,
-              points
-            )
-          )
+          question_responses(*)
         `
         )
         .eq('id', sessionId)
@@ -109,14 +146,22 @@ export class ResultsService {
         .single()
 
       if (sessionError || !session) {
+        console.error(
+          `Failed to fetch session ${sessionId} for result calculation:`,
+          sessionError
+        )
         return {
           success: false,
           error: 'Session not found or not completed',
         }
       }
 
+      console.log(
+        `Found session ${sessionId} with ${session.question_responses?.length || 0} question responses`
+      )
+
       // Check if result already exists
-      const { data: existingResult } = await supabase
+      const { data: existingResult } = await supabaseClient
         .from('exam_results')
         .select('id')
         .eq('session_id', sessionId)
@@ -129,15 +174,122 @@ export class ResultsService {
         }
       }
 
+      // Get questions separately (same pattern as exam session service)
+      if (
+        !session.question_responses ||
+        session.question_responses.length === 0
+      ) {
+        console.warn(
+          `No question responses found for session ${sessionId} - cannot calculate scores`
+        )
+        return {
+          success: false,
+          error: 'No responses found for this session',
+        }
+      }
+
+      const questionIds = session.question_responses.map(
+        (r: { question_id: string }) => r.question_id
+      )
+      console.log(
+        `DEBUG: About to query ${questionIds.length} questions through exam_questions junction table`
+      )
+      console.log('DEBUG: questionIds array:', JSON.stringify(questionIds))
+      console.log('DEBUG: exam_id:', session.exam_id)
+
+      // Use authenticated client - student can read questions for their completed sessions
+      console.log(
+        'DEBUG: Using authenticated client to query junction table...'
+      )
+      const { data: examQuestions, error: questionsError } =
+        await supabaseClient
+          .from('exam_questions')
+          .select(
+            `
+          questions (
+            id,
+            type,
+            correct_answer,
+            options,
+            points
+          )
+        `
+          )
+          .eq('exam_id', session.exam_id || '')
+          .in('question_id', questionIds)
+
+      console.log(
+        `DEBUG: Junction table query completed. Found ${examQuestions?.length || 0} exam-question records. Error:`,
+        questionsError?.message
+      )
+
+      // Extract questions from the junction table results
+      let questions: any[] =
+        examQuestions
+          ?.map((eq: { questions: unknown }) => eq.questions)
+          .filter((q: unknown) => q !== null) || []
+      console.log(
+        `DEBUG: Extracted ${questions.length} questions from junction table results`
+      )
+
+      // If junction table approach still failed, try direct questions table query as fallback
+      if (questions.length === 0) {
+        console.log(
+          'DEBUG: Junction table approach still failed, trying direct questions table query as fallback...'
+        )
+        const { data: directQuestions, error: directError } =
+          await supabaseClient
+            .from('questions')
+            .select('id, type, correct_answer, options, points')
+            .in('id', questionIds)
+
+        console.log('DEBUG: Direct questions query result:', {
+          found: directQuestions?.length || 0,
+          error: directError?.message,
+        })
+
+        if (directQuestions && directQuestions.length > 0) {
+          questions = directQuestions
+          console.log(
+            `DEBUG: Using ${questions.length} questions from direct query`
+          )
+        }
+      }
+
+      if (questionsError) {
+        console.error(
+          `Failed to fetch questions for session ${sessionId}:`,
+          questionsError
+        )
+        return {
+          success: false,
+          error: `Failed to fetch questions: ${questionsError.message}`,
+        }
+      }
+
+      const questionsMap = new Map(questions?.map((q: any) => [q.id, q]) || [])
+      console.log(
+        `Found ${questions?.length || 0} questions for ${questionIds.length} responses`
+      )
+
       let totalScore = 0
       let maxPossibleScore = 0
       let correctAnswers = 0
       let totalQuestions = 0
 
+      console.log(
+        `Starting score calculation for ${session.question_responses.length} responses`
+      )
+
       // Calculate scores
-      for (const response of session.question_responses || []) {
-        const question = response.questions
-        if (!question) continue
+      for (const response of session.question_responses) {
+        const question = questionsMap.get(response.question_id)
+        if (!question) {
+          console.warn(
+            `Skipping response with missing question: ${response.question_id}`
+          )
+          continue
+        }
 
         totalQuestions++
         const questionPoints = question.points || 1
@@ -148,11 +300,34 @@ export class ResultsService {
 
         switch (question.type) {
           case 'multiple_choice':
+            // Handle option ID comparison for multiple choice (same logic as ExamSessionService)
+            const userAnswerArray = Array.isArray(response.response)
+              ? response.response
+              : [String(response.response)]
+            const correctAnswerArray = Array.isArray(question.correct_answer)
+              ? question.correct_answer.map(String)
+              : [String(question.correct_answer)]
+
+            // Sort arrays for comparison to handle multiple selections
+            const sortedUserAnswer = userAnswerArray.sort()
+            const sortedCorrectAnswer = correctAnswerArray.sort()
+
+            isCorrect =
+              JSON.stringify(sortedUserAnswer) ===
+              JSON.stringify(sortedCorrectAnswer)
+            console.log(
+              `Question ${question.id} (${question.type}): User answered ${JSON.stringify(sortedUserAnswer)}, correct answer ${JSON.stringify(sortedCorrectAnswer)}, isCorrect: ${isCorrect}`
+            )
+            break
+
           case 'true_false':
           case 'fill_blank':
             isCorrect =
               this.normalizeAnswer(response.response) ===
               this.normalizeAnswer(question.correct_answer)
+            console.log(
+              `Question ${question.id} (${question.type}): User answered "${response.response}", correct answer "${question.correct_answer}", isCorrect: ${isCorrect}`
+            )
             break
 
           case 'essay':
@@ -160,10 +335,16 @@ export class ResultsService {
             // For essay and matching questions, manual grading is required
             // For now, we'll award partial credit
             isCorrect = false // Requires manual review
+            console.log(
+              `Question ${question.id} (${question.type}): Requires manual grading`
+            )
             break
 
           default:
             isCorrect = false
+            console.log(
+              `Question ${question.id} (${question.type}): Unknown question type`
+            )
         }
 
         if (isCorrect) {
@@ -171,6 +352,10 @@ export class ResultsService {
           totalScore += questionPoints
         }
       }
+
+      console.log(
+        `Score calculation complete: ${totalScore}/${maxPossibleScore} points (${correctAnswers}/${totalQuestions} correct)`
+      )
 
       const percentage =
         maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0
@@ -180,7 +365,7 @@ export class ResultsService {
       )
 
       // Create exam result
-      const { data: result, error: resultError } = await supabase
+      const { data: result, error: resultError } = await supabaseClient
         .from('exam_results')
         .insert({
           session_id: sessionId,
@@ -549,8 +734,8 @@ export class ResultsService {
 
     return {
       success: result.success,
-      results: result.results || undefined,
-      error: result.error || undefined,
+      results: result.results,
+      error: result.error,
     }
   }
 

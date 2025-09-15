@@ -7,18 +7,32 @@ import {
   CheckCircle,
   Pause,
   Play,
-  Send,
   ArrowLeft,
   ArrowRight,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
-import type {
-  ExamSessionWithDetails,
-  SubmitResponseRequest,
-} from '@/lib/exam-sessions/service'
+import type { ExamSessionWithDetails } from '@/lib/exam-sessions/service'
+
+// Request tracking for debugging
+const activeRequests = new Set<string>()
+const logRequest = (url: string, method: string) => {
+  const requestId = `${method}:${url}`
+  if (activeRequests.has(requestId)) {
+    console.warn(`🚨 ExamSession: Duplicate request detected: ${requestId}`)
+    return false
+  }
+  activeRequests.add(requestId)
+  console.log(`🌐 ExamSession: API Request: ${requestId}`)
+  return true
+}
+const clearRequest = (url: string, method: string) => {
+  const requestId = `${method}:${url}`
+  activeRequests.delete(requestId)
+}
 
 interface ExamSessionProps {
   sessionId: string
+  initialSession: ExamSessionWithDetails
   onSessionComplete: () => void
   onSessionError: (error: string) => void
 }
@@ -26,108 +40,162 @@ interface ExamSessionProps {
 interface SessionProgress {
   totalQuestions: number
   answeredQuestions: number
-  timeElapsed: number
-  timeRemaining: number | null
   completionPercentage: number
 }
 
 const ExamSession: React.FC<ExamSessionProps> = ({
   sessionId,
+  initialSession,
   onSessionComplete,
   onSessionError,
 }) => {
-  const [session, setSession] = useState<ExamSessionWithDetails | null>(null)
-  const [progress, setProgress] = useState<SessionProgress | null>(null)
+  const [session] = useState<ExamSessionWithDetails>(initialSession)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [responses, setResponses] = useState<Record<string, unknown>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  const [isClientMounted, setIsClientMounted] = useState(false)
+  const [progress, setProgress] = useState<SessionProgress>({
+    totalQuestions: session?.exams.exam_questions?.length || 0,
+    answeredQuestions: 0,
+    completionPercentage: 0,
+  })
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const loadSession = useCallback(async () => {
+  // Handle client-side mounting to prevent hydration mismatch
+  useEffect(() => {
+    setIsClientMounted(true)
+  }, [])
+
+  // Update progress based on current answers
+  const updateProgress = useCallback(
+    (currentResponses: Record<string, unknown>) => {
+      const totalQuestions = session?.exams.exam_questions?.length || 0
+      const answeredQuestions = Object.keys(currentResponses).length
+      const completionPercentage =
+        totalQuestions > 0
+          ? Math.round((answeredQuestions / totalQuestions) * 100)
+          : 0
+
+      setProgress({
+        totalQuestions,
+        answeredQuestions,
+        completionPercentage,
+      })
+    },
+    [session]
+  )
+
+  // Load answers from Redis once on exam start (with client-side caching)
+  const loadAnswersFromRedis = useCallback(async () => {
     try {
-      const response = await fetch(`/api/exam-sessions/${sessionId}`)
-      const data = await response.json()
+      console.log(
+        `ExamSession: Loading answers from Redis for session ${sessionId}`
+      )
+      const response = await fetch(
+        `/api/exam-sessions/${sessionId}/redis-answers`
+      )
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to load session')
+        const errorData = await response.json()
+        throw new Error(
+          errorData.error || `HTTP ${response.status}: Failed to load answers`
+        )
       }
 
-      setSession(data.session)
-
-      // Load existing responses
-      const existingResponses: Record<string, unknown> = {}
-      data.session.question_responses?.forEach(
-        (resp: { question_id: string; response: unknown }) => {
-          existingResponses[resp.question_id] = resp.response
-        }
-      )
-      setResponses(existingResponses)
-
-      setIsPaused(data.session.status === 'paused')
-    } catch (err) {
-      console.error('Load session error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load session')
-      onSessionError(
-        err instanceof Error ? err.message : 'Failed to load session'
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }, [sessionId, onSessionError])
-
-  const loadProgress = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/exam-sessions/${sessionId}/progress`)
       const data = await response.json()
 
-      if (response.ok && data.success) {
-        setProgress(data.progress)
-        setTimeLeft(data.progress.timeRemaining)
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to retrieve answers from Redis')
+      }
+
+      if (data.answers) {
+        console.log(
+          `ExamSession: Cached ${Object.keys(data.answers).length} answers from Redis for session ${sessionId}`
+        )
+        setResponses(data.answers)
+        updateProgress(data.answers)
+      } else {
+        console.log(
+          `ExamSession: No existing answers found in Redis for session ${sessionId}`
+        )
+        setResponses({})
+        updateProgress({})
       }
     } catch (err) {
-      console.error('Load progress error:', err)
+      console.error('ExamSession: Failed to load answers from Redis:', err)
+      // Don't throw here - missing Redis data shouldn't block the exam
+      setResponses({})
+      updateProgress({})
     }
-  }, [sessionId])
+  }, [sessionId, updateProgress])
 
-  const startProgressUpdates = useCallback(() => {
-    loadProgress()
-    // Update every 30 seconds instead of 5 seconds to reduce server load
-    progressIntervalRef.current = setInterval(loadProgress, 30000)
-  }, [loadProgress])
+  // Load existing answers and set initial state
+  useEffect(() => {
+    if (!isClientMounted) return
+    const loadSessionData = async () => {
+      try {
+        // Load existing answers from Redis once (then cache in React state)
+        await loadAnswersFromRedis()
 
-  const stopProgressUpdates = useCallback(() => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current)
-      progressIntervalRef.current = null
+        // Set initial time
+        if (session.exams.time_limit_minutes) {
+          setTimeLeft(session.exams.time_limit_minutes * 60)
+        }
+      } catch (err) {
+        console.error('Failed to load session data:', err)
+        setError('Failed to load exam session data')
+        onSessionError('Failed to load exam session data')
+      }
+    }
+
+    loadSessionData()
+  }, [
+    sessionId,
+    session.id,
+    session.exams.time_limit_minutes,
+    isClientMounted,
+    loadAnswersFromRedis,
+    onSessionError,
+  ])
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
     }
   }, [])
 
-  // Load session data
-  useEffect(() => {
-    loadSession()
-    startProgressUpdates()
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-      stopProgressUpdates() // Use the cleanup function
-    }
-  }, [loadSession, startProgressUpdates, stopProgressUpdates])
-
   const handleCompleteSession = useCallback(async () => {
+    if (isSubmitting) return
+
+    setIsSubmitting(true)
+
     try {
-      const response = await fetch(`/api/exam-sessions/${sessionId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action: 'complete' }),
+      console.log(
+        `ExamSession: Submitting ${Object.keys(responses).length} cached answers for completion`
+      )
+
+      // Check for duplicate request
+      const completionUrl = `/api/exam-sessions/${sessionId}/complete`
+      if (!logRequest(completionUrl, 'POST')) {
+        console.warn(
+          'ExamSession: Completion request already in progress, skipping duplicate'
+        )
+        setIsSubmitting(false)
+        return
+      }
+
+      // Complete session - Redis data will be transferred to database by server
+      const response = await fetch(completionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
       })
+
+      clearRequest(completionUrl, 'POST')
 
       const data = await response.json()
 
@@ -135,32 +203,23 @@ const ExamSession: React.FC<ExamSessionProps> = ({
         throw new Error(data.error || 'Failed to complete session')
       }
 
-      stopProgressUpdates() // Stop polling when exam completes
+      console.log(
+        `ExamSession: Successfully completed session ${sessionId} - Redis data transferred to database`
+      )
+
+      stopTimer()
       onSessionComplete()
     } catch (err) {
       console.error('Complete session error:', err)
+      clearRequest(`/api/exam-sessions/${sessionId}/complete`, 'POST')
       setError(
         err instanceof Error ? err.message : 'Failed to complete session'
       )
+      setIsSubmitting(false)
     }
-  }, [sessionId, onSessionComplete, stopProgressUpdates])
+  }, [sessionId, isSubmitting, onSessionComplete, stopTimer, responses])
 
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-  }
-
-  const handleTimeUp = useCallback(async () => {
-    stopTimer()
-    try {
-      await handleCompleteSession()
-    } catch (err) {
-      console.error('Auto-complete session error:', err)
-    }
-  }, [handleCompleteSession])
-
+  // Timer functionality
   const startTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current)
 
@@ -168,13 +227,13 @@ const ExamSession: React.FC<ExamSessionProps> = ({
       setTimeLeft((prev) => {
         if (prev === null) return null
         if (prev <= 0) {
-          handleTimeUp()
+          handleCompleteSession()
           return 0
         }
         return prev - 1
       })
     }, 1000)
-  }, [handleTimeUp])
+  }, [handleCompleteSession])
 
   useEffect(() => {
     if (!isPaused && timeLeft !== null && session?.status === 'active') {
@@ -184,50 +243,73 @@ const ExamSession: React.FC<ExamSessionProps> = ({
     }
 
     return stopTimer
-  }, [isPaused, timeLeft, session?.status, startTimer])
+  }, [isPaused, timeLeft, session.status, startTimer, stopTimer])
 
-  const handleResponseChange = (questionId: string, response: unknown) => {
-    setResponses((prev) => ({
-      ...prev,
+  // Handle answer changes - immediate Redis save + client cache update
+  const handleResponseChange = async (
+    questionId: string,
+    response: unknown
+  ) => {
+    console.log(`ExamSession: Answer changed for question ${questionId}`)
+
+    // Update client-side cache immediately for instant UI response
+    const newResponses = {
+      ...responses,
       [questionId]: response,
-    }))
-  }
+    }
+    setResponses(newResponses)
+    updateProgress(newResponses)
 
-  const submitResponse = async (questionId: string, response: unknown) => {
-    if (isSubmitting) return
-
-    setIsSubmitting(true)
+    // Save to Redis immediately (but don't re-fetch) with deduplication
     try {
-      const submitRequest: SubmitResponseRequest = {
-        sessionId,
-        questionId,
-        response,
+      const saveUrl = '/api/exam-sessions/save-answer'
+      const requestKey = `${saveUrl}:${questionId}`
+
+      if (!logRequest(requestKey, 'POST')) {
+        console.log(
+          `ExamSession: Skipping duplicate save request for question ${questionId}`
+        )
+        return
       }
 
-      const apiResponse = await fetch(
-        `/api/exam-sessions/${sessionId}/responses`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(submitRequest),
-        }
+      const saveResponse = await fetch(saveUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          questionId,
+          answer: response,
+        }),
+      })
+
+      clearRequest(requestKey, 'POST')
+
+      if (!saveResponse.ok) {
+        const errorData = await saveResponse.json()
+        throw new Error(
+          errorData.error ||
+            `HTTP ${saveResponse.status}: Failed to save answer`
+        )
+      }
+
+      const data = await saveResponse.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to save answer to Redis')
+      }
+
+      console.log(
+        `ExamSession: Saved answer for question ${questionId} to Redis session ${sessionId}`
+      )
+    } catch (err) {
+      console.error('ExamSession: Failed to save answer to Redis:', err)
+      clearRequest(`/api/exam-sessions/save-answer:${questionId}`, 'POST')
+      setError(
+        `Failed to save answer: ${err instanceof Error ? err.message : 'Unknown error'}`
       )
 
-      const data = await apiResponse.json()
-
-      if (!apiResponse.ok) {
-        throw new Error(data.error || 'Failed to submit response')
-      }
-
-      // Refresh progress
-      loadProgress()
-    } catch (err) {
-      console.error('Submit response error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to submit response')
-    } finally {
-      setIsSubmitting(false)
+      // Show user-friendly error but don't block the exam
+      setTimeout(() => setError(null), 5000)
     }
   }
 
@@ -237,9 +319,7 @@ const ExamSession: React.FC<ExamSessionProps> = ({
 
       const response = await fetch(`/api/exam-sessions/${sessionId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       })
 
@@ -250,15 +330,6 @@ const ExamSession: React.FC<ExamSessionProps> = ({
       }
 
       setIsPaused(!isPaused)
-      if (isPaused) {
-        // Resuming exam
-        startTimer()
-        startProgressUpdates()
-      } else {
-        // Pausing exam
-        stopTimer()
-        stopProgressUpdates()
-      }
     } catch (err) {
       console.error('Pause/Resume error:', err)
       setError(err instanceof Error ? err.message : 'Failed to update session')
@@ -288,27 +359,18 @@ const ExamSession: React.FC<ExamSessionProps> = ({
     try {
       switch (question.type) {
         case 'multiple_choice':
-          // Validate that options exists and is an array
           if (!question.options || !Array.isArray(question.options)) {
-            console.warn(
-              `Multiple choice question ${questionId} has invalid options:`,
-              question.options
-            )
             return (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-800 text-sm">
                   ⚠️ This question has invalid options and cannot be displayed
-                  properly. Please contact your instructor.
+                  properly.
                 </p>
               </div>
             )
           }
 
-          // Check if options array is empty
           if (question.options.length === 0) {
-            console.warn(
-              `Multiple choice question ${questionId} has no options`
-            )
             return (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-yellow-800 text-sm">
@@ -318,63 +380,46 @@ const ExamSession: React.FC<ExamSessionProps> = ({
             )
           }
 
-          try {
-            return (
-              <div className="space-y-3">
-                {question.options.map(
-                  (
-                    option:
-                      | string
-                      | { id: string; text: string; isCorrect: boolean },
-                    index: number
-                  ) => {
-                    // Handle both string arrays and object arrays
-                    const optionText =
-                      typeof option === 'string'
-                        ? option
-                        : option?.text || `Option ${index + 1}`
-                    const optionValue =
-                      typeof option === 'string'
-                        ? option
-                        : option?.text || `option_${index}`
+          return (
+            <div className="space-y-3">
+              {question.options.map(
+                (
+                  option:
+                    | string
+                    | { id: string; text: string; isCorrect: boolean },
+                  index: number
+                ) => {
+                  const optionText =
+                    typeof option === 'string'
+                      ? option
+                      : option?.text || `Option ${index + 1}`
+                  const optionValue =
+                    typeof option === 'string'
+                      ? option
+                      : option?.id || `option_${index}`
 
-                    return (
-                      <label
-                        key={index}
-                        className="flex items-center space-x-3 cursor-pointer"
-                      >
-                        <input
-                          type="radio"
-                          name={questionId}
-                          value={optionValue}
-                          checked={currentResponse === optionValue}
-                          onChange={(e) => {
-                            handleResponseChange(questionId, e.target.value)
-                            submitResponse(questionId, e.target.value)
-                          }}
-                          className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
-                        />
-                        <span className="text-foreground">{optionText}</span>
-                      </label>
-                    )
-                  }
-                )}
-              </div>
-            )
-          } catch (error) {
-            console.error(
-              `Error rendering multiple choice options for question ${questionId}:`,
-              error
-            )
-            return (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-800 text-sm">
-                  ⚠️ Error displaying question options. Please try refreshing
-                  the page.
-                </p>
-              </div>
-            )
-          }
+                  return (
+                    <label
+                      key={index}
+                      className="flex items-center space-x-3 cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name={questionId}
+                        value={optionValue}
+                        checked={currentResponse === optionValue}
+                        onChange={(e) =>
+                          handleResponseChange(questionId, e.target.value)
+                        }
+                        className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
+                      />
+                      <span className="text-foreground">{optionText}</span>
+                    </label>
+                  )
+                }
+              )}
+            </div>
+          )
 
         case 'true_false':
           return (
@@ -389,10 +434,9 @@ const ExamSession: React.FC<ExamSessionProps> = ({
                     name={questionId}
                     value={option.toLowerCase()}
                     checked={currentResponse === option.toLowerCase()}
-                    onChange={(e) => {
+                    onChange={(e) =>
                       handleResponseChange(questionId, e.target.value)
-                      submitResponse(questionId, e.target.value)
-                    }}
+                    }
                     className="w-4 h-4 text-primary border-gray-300 focus:ring-2 focus:ring-primary"
                   />
                   <span className="text-foreground">{option}</span>
@@ -405,24 +449,14 @@ const ExamSession: React.FC<ExamSessionProps> = ({
           return (
             <div className="space-y-3">
               <textarea
-                value={currentResponse}
+                value={currentResponse as string}
                 onChange={(e) =>
                   handleResponseChange(questionId, e.target.value)
                 }
-                onBlur={() => submitResponse(questionId, currentResponse)}
                 placeholder="Enter your essay response here..."
                 rows={8}
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-vertical"
               />
-              <Button
-                onClick={() => submitResponse(questionId, currentResponse)}
-                disabled={isSubmitting}
-                size="sm"
-                className="ml-auto"
-              >
-                <Send className="w-4 h-4 mr-1" />
-                Save Response
-              </Button>
             </div>
           )
 
@@ -431,23 +465,13 @@ const ExamSession: React.FC<ExamSessionProps> = ({
             <div className="space-y-3">
               <input
                 type="text"
-                value={currentResponse}
+                value={currentResponse as string}
                 onChange={(e) =>
                   handleResponseChange(questionId, e.target.value)
                 }
-                onBlur={() => submitResponse(questionId, currentResponse)}
                 placeholder="Enter your answer here..."
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
               />
-              <Button
-                onClick={() => submitResponse(questionId, currentResponse)}
-                disabled={isSubmitting}
-                size="sm"
-                className="ml-auto"
-              >
-                <Send className="w-4 h-4 mr-1" />
-                Save Response
-              </Button>
             </div>
           )
 
@@ -455,24 +479,14 @@ const ExamSession: React.FC<ExamSessionProps> = ({
           return (
             <div className="space-y-3">
               <textarea
-                value={currentResponse}
+                value={currentResponse as string}
                 onChange={(e) =>
                   handleResponseChange(questionId, e.target.value)
                 }
-                onBlur={() => submitResponse(questionId, currentResponse)}
                 placeholder="Enter your response here..."
                 rows={4}
                 className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary resize-vertical"
               />
-              <Button
-                onClick={() => submitResponse(questionId, currentResponse)}
-                disabled={isSubmitting}
-                size="sm"
-                className="ml-auto"
-              >
-                <Send className="w-4 h-4 mr-1" />
-                Save Response
-              </Button>
             </div>
           )
       }
@@ -484,25 +498,15 @@ const ExamSession: React.FC<ExamSessionProps> = ({
       return (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-800 text-sm">
-            ⚠️ Error displaying this question. Please try refreshing the page or
-            contact your instructor.
+            ⚠️ Error displaying this question. Please try refreshing the page.
           </p>
-          <details className="mt-2">
-            <summary className="text-xs text-red-600 cursor-pointer">
-              Technical Details
-            </summary>
-            <pre className="text-xs text-red-600 mt-1 whitespace-pre-wrap">
-              Question ID: {questionId}
-              Type: {question.type}
-              Error: {error instanceof Error ? error.message : String(error)}
-            </pre>
-          </details>
         </div>
       )
     }
   }
 
-  if (isLoading) {
+  // Show loading until client is mounted to prevent hydration mismatch
+  if (!isClientMounted) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -582,23 +586,20 @@ const ExamSession: React.FC<ExamSessionProps> = ({
         </div>
 
         {/* Progress */}
-        {progress && (
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-secondary">
-              <span>Progress: {progress.completionPercentage}%</span>
-              <span>
-                {progress.answeredQuestions} of {progress.totalQuestions}{' '}
-                answered
-              </span>
-            </div>
-            <div className="w-full bg-background-tertiary rounded-full h-2">
-              <div
-                className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress.completionPercentage}%` }}
-              />
-            </div>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-secondary">
+            <span>Progress: {progress.completionPercentage}%</span>
+            <span>
+              {progress.answeredQuestions} of {progress.totalQuestions} answered
+            </span>
           </div>
-        )}
+          <div className="w-full bg-background-tertiary rounded-full h-2">
+            <div
+              className="bg-primary h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress.completionPercentage}%` }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Question */}
@@ -612,11 +613,6 @@ const ExamSession: React.FC<ExamSessionProps> = ({
               {currentQuestion.points && (
                 <span className="text-sm text-secondary">
                   ({currentQuestion.points} points)
-                </span>
-              )}
-              {currentQuestion.required && (
-                <span className="text-xs bg-error-light text-error px-2 py-1 rounded">
-                  Required
                 </span>
               )}
             </div>
@@ -642,7 +638,7 @@ const ExamSession: React.FC<ExamSessionProps> = ({
           {responses[currentQuestion.questions.id] && (
             <div className="flex items-center gap-2 text-sm text-success">
               <CheckCircle className="w-4 h-4" />
-              <span>Response saved</span>
+              <span>Answer saved</span>
             </div>
           )}
         </div>
@@ -674,8 +670,12 @@ const ExamSession: React.FC<ExamSessionProps> = ({
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={handleCompleteSession} variant="primary">
-              Complete Exam
+            <Button
+              onClick={handleCompleteSession}
+              variant="primary"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Submitting...' : 'Complete Exam'}
             </Button>
           )}
         </div>
