@@ -329,9 +329,9 @@ export const ExamAIGeneratorModal: React.FC<ExamAIGeneratorModalProps> = ({
                 <p>Model used: {generationResult.metadata?.model_used}</p>
                 <p>
                   Generation time:{' '}
-                  {(generationResult.metadata?.generation_time / 1000).toFixed(
-                    1
-                  )}
+                  {(
+                    (generationResult.metadata?.generation_time || 0) / 1000
+                  ).toFixed(1)}
                   s
                 </p>
                 <p className="mt-2 font-medium">

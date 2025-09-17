@@ -63,7 +63,7 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
         const studentId = result.user_id
         const student = result.exam_sessions?.user_profiles
 
-        if (!student) return
+        if (!student || !studentId) return
 
         if (!studentMap.has(studentId)) {
           studentMap.set(studentId, {
@@ -83,8 +83,9 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
 
         // Update last exam date
         if (
-          !studentSummary.lastExamDate ||
-          result.submitted_at > studentSummary.lastExamDate
+          result.submitted_at &&
+          (!studentSummary.lastExamDate ||
+            result.submitted_at > studentSummary.lastExamDate)
         ) {
           studentSummary.lastExamDate = result.submitted_at
         }
@@ -130,10 +131,11 @@ const ExaminerStudentsView: React.FC<ExaminerStudentsViewProps> = ({
 
     let matchesFilter = true
     if (filterStatus === 'active') {
-      matchesFilter =
+      matchesFilter = Boolean(
         student.lastExamDate &&
-        new Date(student.lastExamDate) >
-          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+          new Date(student.lastExamDate) >
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // Last 30 days
+      )
     } else if (filterStatus === 'inactive') {
       matchesFilter =
         !student.lastExamDate ||

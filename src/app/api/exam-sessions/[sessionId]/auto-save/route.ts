@@ -146,7 +146,7 @@ export async function POST(request: NextRequest, context: Context) {
 }
 
 async function processAutoSave(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   sessionId: string,
   userId: string,
   responses: AutoSaveRequest['responses']
@@ -172,7 +172,9 @@ async function processAutoSave(
       existingResponses?.map((r) => [
         r.question_id,
         {
-          timestamp: new Date(r.updated_at).getTime(),
+          timestamp: r.updated_at
+            ? new Date(r.updated_at).getTime()
+            : Date.now(),
           response: r.response,
         },
       ]) || []
@@ -213,7 +215,10 @@ async function processAutoSave(
         }
 
         const question = questionsMap.get(response.questionId)
-        let evaluation = { isCorrect: null, pointsEarned: 0 }
+        let evaluation: { isCorrect: boolean | null; pointsEarned: number } = {
+          isCorrect: null,
+          pointsEarned: 0,
+        }
 
         if (question) {
           evaluation = evaluateAnswerQuick(response.response, question)
@@ -223,7 +228,7 @@ async function processAutoSave(
           session_id: sessionId,
           question_id: response.questionId,
           user_id: userId,
-          response: response.response,
+          response: response.response as any,
           is_correct: evaluation.isCorrect,
           points_earned: evaluation.pointsEarned,
           time_spent: null,

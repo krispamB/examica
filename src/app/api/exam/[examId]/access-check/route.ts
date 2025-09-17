@@ -8,10 +8,7 @@ interface ExamAccessParams {
   }>
 }
 
-export async function GET(
-  _request: NextRequest,
-  { params }: ExamAccessParams
-) {
+export async function GET(_request: NextRequest, { params }: ExamAccessParams) {
   try {
     const { examId } = await params
 
@@ -50,10 +47,7 @@ export async function GET(
       .single()
 
     if (examError || !exam) {
-      return NextResponse.json(
-        { error: 'Exam not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
     }
 
     // Check if exam is active
@@ -74,7 +68,7 @@ export async function GET(
     // Check existing exam session
     const { data: existingSession } = await supabase
       .from('exam_sessions')
-      .select('id, status, started_at, completed_at, verification_status')
+      .select('id, status, started_at, completed_at')
       .eq('user_id', user.id)
       .eq('exam_id', examId)
       .single()
@@ -133,7 +127,6 @@ export async function GET(
       sessionStatus: existingSession?.status,
       userRole: userProfile.role,
     })
-
   } catch (error) {
     console.error('Exam access check error:', error)
     return NextResponse.json(

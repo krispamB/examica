@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
     // Check if user already exists with this email
     const { data: existingUser } = await supabase.auth.admin.listUsers()
     const userExists = existingUser.users?.some(
-      (user) => user.email === invitation.email
+      (user: any) => user.email === invitation.email
     )
 
     if (userExists) {

@@ -21,7 +21,8 @@ if (!SUPABASE_URL) {
   process.exit(1)
 }
 
-if (!SUPABASE_SERVICE_ROLE_KEY) {
+if (!SUPABASE_
+  SERVICE_ROLE_KEY) {
   console.error('❌ SUPABASE_SERVICE_ROLE_KEY not found in environment variables')
   console.error('   Please add your Supabase service role key to .env file:')
   console.error('   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here')

@@ -2,7 +2,19 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Plus, Eye, Edit3, BarChart3, Users, Clock, FileText, MoreVertical, Trash2, Play, Pause } from 'lucide-react'
+import {
+  Plus,
+  Eye,
+  Edit3,
+  BarChart3,
+  Users,
+  Clock,
+  FileText,
+  MoreVertical,
+  Trash2,
+  Play,
+  Pause,
+} from 'lucide-react'
 import Button from '@/components/ui/Button'
 import type { ExamWithQuestions } from '@/lib/exams/service'
 
@@ -11,7 +23,10 @@ interface ExaminerExamsListProps {
   userRole: string
 }
 
-const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole }) => {
+const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({
+  userId,
+  userRole,
+}) => {
   const [exams, setExams] = useState<ExamWithQuestions[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,7 +62,10 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
     loadExams()
   }, [loadExams])
 
-  const handleStatusChange = async (examId: string, action: 'publish' | 'archive') => {
+  const handleStatusChange = async (
+    examId: string,
+    action: 'publish' | 'archive'
+  ) => {
     try {
       const endpoint = action === 'publish' ? 'publish' : 'archive'
       const response = await fetch(`/api/exams/${examId}/${endpoint}`, {
@@ -69,7 +87,11 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
   }
 
   const handleDeleteExam = async (examId: string) => {
-    if (!confirm('Are you sure you want to delete this exam? This action cannot be undone.')) {
+    if (
+      !confirm(
+        'Are you sure you want to delete this exam? This action cannot be undone.'
+      )
+    ) {
       return
     }
 
@@ -125,11 +147,11 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
     return (
       <div className="text-center py-12">
         <FileText className="w-12 h-12 text-error mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-foreground mb-2">Error Loading Exams</h3>
+        <h3 className="text-lg font-medium text-foreground mb-2">
+          Error Loading Exams
+        </h3>
         <p className="text-secondary mb-6">{error}</p>
-        <Button onClick={loadExams}>
-          Try Again
-        </Button>
+        <Button onClick={loadExams}>Try Again</Button>
       </div>
     )
   }
@@ -143,7 +165,7 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
             {exams.length} {exams.length === 1 ? 'exam' : 'exams'} total
           </div>
         </div>
-        
+
         <Link href="/examiner/create">
           <Button className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
@@ -156,9 +178,12 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
       {exams.length === 0 ? (
         <div className="text-center py-12">
           <FileText className="w-16 h-16 text-secondary mx-auto mb-4" />
-          <h3 className="text-xl font-medium text-foreground mb-2">No Exams Yet</h3>
+          <h3 className="text-xl font-medium text-foreground mb-2">
+            No Exams Yet
+          </h3>
           <p className="text-secondary mb-6">
-            Get started by creating your first exam. You can add questions, set time limits, and configure settings.
+            Get started by creating your first exam. You can add questions, set
+            time limits, and configure settings.
           </p>
           <Link href="/examiner/create">
             <Button className="flex items-center gap-2">
@@ -180,21 +205,30 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
                   <h3 className="text-lg font-semibold text-foreground mb-1 line-clamp-2">
                     {exam.title}
                   </h3>
-                  <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(exam.status)}`}>
-                    {exam.status === 'active' && <Play className="w-3 h-3 mr-1" />}
-                    {exam.status === 'draft' && <Pause className="w-3 h-3 mr-1" />}
-                    {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
+                  <div
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(exam.status || 'draft')}`}
+                  >
+                    {exam.status === 'active' && (
+                      <Play className="w-3 h-3 mr-1" />
+                    )}
+                    {exam.status === 'draft' && (
+                      <Pause className="w-3 h-3 mr-1" />
+                    )}
+                    {(exam.status || 'draft').charAt(0).toUpperCase() +
+                      (exam.status || 'draft').slice(1)}
                   </div>
                 </div>
-                
+
                 <div className="relative">
                   <button
-                    onClick={() => setSelectedExam(selectedExam === exam.id ? null : exam.id)}
+                    onClick={() =>
+                      setSelectedExam(selectedExam === exam.id ? null : exam.id)
+                    }
                     className="p-1 hover:bg-background-secondary rounded"
                   >
                     <MoreVertical className="w-4 h-4 text-secondary" />
                   </button>
-                  
+
                   {/* Dropdown Menu */}
                   {selectedExam === exam.id && (
                     <div className="absolute right-0 mt-1 w-48 bg-background rounded-lg border border-border shadow-lg z-10">
@@ -215,7 +249,7 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
                           <BarChart3 className="w-4 h-4" />
                           View Analytics
                         </Link>
-                        
+
                         {exam.status === 'draft' && (
                           <button
                             onClick={() => {
@@ -228,7 +262,7 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
                             Publish Exam
                           </button>
                         )}
-                        
+
                         {exam.status === 'active' && (
                           <button
                             onClick={() => {
@@ -241,7 +275,7 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
                             Archive Exam
                           </button>
                         )}
-                        
+
                         <div className="border-t border-border my-1" />
                         <button
                           onClick={() => {
@@ -272,10 +306,12 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
                   <div className="flex items-center justify-center text-primary mb-1">
                     <FileText className="w-4 h-4" />
                   </div>
-                  <div className="text-sm font-medium text-foreground">{exam.question_count || 0}</div>
+                  <div className="text-sm font-medium text-foreground">
+                    {exam.question_count || 0}
+                  </div>
                   <div className="text-xs text-secondary">Questions</div>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="flex items-center justify-center text-info mb-1">
                     <Clock className="w-4 h-4" />
@@ -285,7 +321,7 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
                   </div>
                   <div className="text-xs text-secondary">Duration</div>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="flex items-center justify-center text-success mb-1">
                     <Users className="w-4 h-4" />
@@ -298,9 +334,10 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({ userId, userRole 
               {/* Exam Footer */}
               <div className="flex items-center justify-between pt-4 border-t border-border">
                 <div className="text-xs text-secondary">
-                  Updated {formatDate(exam.updated_at)}
+                  Updated{' '}
+                  {exam.updated_at ? formatDate(exam.updated_at) : 'Never'}
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <Link href={`/examiner/exams/${exam.id}/analytics`}>
                     <Button variant="ghost" size="sm">

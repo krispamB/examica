@@ -10,7 +10,7 @@ interface Context {
 }
 
 // GET /api/exam-sessions/[sessionId]/redis-debug - Debug Redis session data
-export async function GET(request: NextRequest, context: Context) {
+export async function GET(_request: NextRequest, context: Context) {
   try {
     const { sessionId } = await context.params
     const supabase = await createClient()
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest, context: Context) {
 
     // Get raw Redis data for debugging
     let rawRedisData = {}
-    let redisKeys = []
+    let redisKeys: string[] = []
 
     try {
       // Get all fields in the hash
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest, context: Context) {
         `
         id, user_id, exam_id, status, created_at,
         exams!inner(
-          id, title, time_limit_minutes
+          id, title, duration
         )
       `
       )
@@ -165,11 +165,11 @@ export async function POST(request: NextRequest, context: Context) {
 
     // Initialize Redis session manually
     const examStorage = getExamStorage()
-    const timeLimit = session.exams.time_limit_minutes || 60
+    const timeLimit = session.exams.duration || 60
 
     const result = await examStorage.initExamSession(
       sessionId,
-      session.exam_id,
+      session.exam_id || '',
       timeLimit
     )
 

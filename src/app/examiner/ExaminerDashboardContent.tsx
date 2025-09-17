@@ -355,10 +355,10 @@ const ExaminerDashboardContent: React.FC<ExaminerDashboardContentProps> = ({
                       {exam.title}
                     </h4>
                     <div
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(exam.status)}`}
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(exam.status || 'draft')}`}
                     >
-                      {exam.status.charAt(0).toUpperCase() +
-                        exam.status.slice(1)}
+                      {(exam.status || 'draft').charAt(0).toUpperCase() +
+                        (exam.status || 'draft').slice(1)}
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-secondary">
@@ -366,7 +366,10 @@ const ExaminerDashboardContent: React.FC<ExaminerDashboardContentProps> = ({
                     <span>
                       {exam.duration ? `${exam.duration} min` : 'Unlimited'}
                     </span>
-                    <span>Updated {formatDate(exam.updated_at)}</span>
+                    <span>
+                      Updated{' '}
+                      {exam.updated_at ? formatDate(exam.updated_at) : 'Never'}
+                    </span>
                   </div>
                 </div>
 

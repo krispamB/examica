@@ -183,10 +183,10 @@ const AnswerStatusIndicator: React.FC<AnswerStatusProps> = ({
         {navigator?.onLine === false ? (
           <WifiOff
             className="w-3.5 h-3.5 text-red-500"
-            title="No internet connection"
+            aria-label="No internet connection"
           />
         ) : (
-          <Wifi className="w-3.5 h-3.5 text-green-500" title="Connected" />
+          <Wifi className="w-3.5 h-3.5 text-green-500" aria-label="Connected" />
         )}
       </div>
 

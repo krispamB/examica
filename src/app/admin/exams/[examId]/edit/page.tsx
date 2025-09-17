@@ -76,7 +76,9 @@ export default async function AdminEditExamPage({
                   : 'bg-background-secondary text-secondary'
             }`}
           >
-            {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
+            {exam.status
+              ? exam.status.charAt(0).toUpperCase() + exam.status.slice(1)
+              : 'Unknown'}
           </div>
         </div>
 
@@ -104,11 +106,8 @@ export default async function AdminEditExamPage({
         </div>
 
         <ExamBuilder
-          mode="edit"
           examId={examId}
-          initialExam={exam}
-          userId={user.id}
-          onExamUpdated={() => {
+          onSave={() => {
             // Refresh the page to show updated data
             window.location.reload()
           }}
@@ -122,7 +121,7 @@ export default async function AdminEditExamPage({
 }
 
 export async function generateMetadata({ params }: AdminEditExamPageProps) {
-  const { examId } = params
+  const { examId } = await params
 
   try {
     const examService = createExamService()

@@ -192,14 +192,16 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
                 </span>
               </div>
               <div className="text-sm text-green-700">
-                <p>Generated {generationResult.generated} questions</p>
-                {generationResult.saved > 0 && (
+                <p>
+                  Generated {generationResult.questions?.length || 0} questions
+                </p>
+                {/* {generationResult.saved > 0 && (
                   <p>
                     Saved {generationResult.saved} questions to the question
                     bank
                   </p>
-                )}
-                <p>
+                )} */}
+                {/* <p>
                   Model used: {generationResult.generation_metadata?.model_used}
                 </p>
                 <p>
@@ -208,7 +210,7 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
                     generationResult.generation_metadata?.generation_time / 1000
                   ).toFixed(1)}
                   s
-                </p>
+                </p> */}
               </div>
             </div>
           )}

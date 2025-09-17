@@ -9,7 +9,7 @@ interface Context {
 }
 
 // GET /api/exam-results/[resultId] - Get specific result
-export async function GET(request: NextRequest, context: Context) {
+export async function GET(_request: NextRequest, context: Context) {
   try {
     const { resultId } = await context.params
     const supabase = await createClient()

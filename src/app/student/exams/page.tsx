@@ -104,7 +104,7 @@ export default function StudentExamsPage() {
           } else if (attempts_used >= max_attempts) {
             can_start = false
             if (latest_result) {
-              status_text = `Completed (${latest_result.percentage?.toFixed(1) || 0}%)`
+              status_text = `Completed (${latest_result.percentage_score?.toFixed(1) || 0}%)`
             } else {
               status_text = 'Attempts exhausted'
             }

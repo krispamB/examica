@@ -201,13 +201,24 @@ export async function PATCH(request: NextRequest) {
       points: number
       difficulty: string
     }[] = []
+    const originalQuestions: any[] = []
     let totalGenerated = 0
     let totalSaved = 0
     const errors: string[] = []
 
     for (const result of results) {
       if (result.success) {
-        allQuestions.push(...result.questions)
+        originalQuestions.push(...result.questions)
+        const mappedQuestions = result.questions.map((q) => ({
+          type: q.type,
+          question: q.title,
+          options: q.options?.map((opt) => opt.text),
+          answer: String(q.correct_answer),
+          explanation: q.explanation,
+          points: q.points,
+          difficulty: q.difficulty,
+        }))
+        allQuestions.push(...mappedQuestions)
         totalGenerated += result.questions.length
       } else {
         errors.push(result.error || 'Unknown error')
@@ -217,10 +228,10 @@ export async function PATCH(request: NextRequest) {
     // Save questions to database if requested
     const saveQuestions = body.save !== false // Default to true
 
-    if (saveQuestions && allQuestions.length > 0) {
+    if (saveQuestions && originalQuestions.length > 0) {
       const questionService = createQuestionService()
       const saveResult = await questionService.createQuestionsFromAI(
-        allQuestions,
+        originalQuestions,
         user.id
       )
 

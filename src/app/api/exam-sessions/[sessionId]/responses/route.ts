@@ -4,15 +4,15 @@ import { createExamSessionService } from '@/lib/exam-sessions/service'
 import type { SubmitResponseRequest } from '@/lib/exam-sessions/service'
 
 interface Context {
-  params: {
+  params: Promise<{
     sessionId: string
-  }
+  }>
 }
 
 // POST /api/exam-sessions/[sessionId]/responses - Submit question response
 export async function POST(request: NextRequest, context: Context) {
   try {
-    const { sessionId } = context.params
+    const { sessionId } = await context.params
     const supabase = await createClient()
 
     // Get current user
@@ -69,17 +69,11 @@ export async function POST(request: NextRequest, context: Context) {
     // Verify session belongs to current user and is active
     const sessionResult = await examSessionService.getExamSession(sessionId)
     if (!sessionResult.success || !sessionResult.session) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
     if (sessionResult.session.user_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Access denied' },
-        { status: 403 }
-      )
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
     if (sessionResult.session.status !== 'active') {
@@ -96,20 +90,17 @@ export async function POST(request: NextRequest, context: Context) {
       timeSpent: body.timeSpent || undefined,
     }
 
-    const result = await examSessionService.submitQuestionResponse(submitRequest)
+    const result =
+      await examSessionService.submitQuestionResponse(submitRequest)
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
     return NextResponse.json({
       success: true,
       response: result.response,
     })
-
   } catch (error) {
     console.error('Submit response API error:', error)
     return NextResponse.json(

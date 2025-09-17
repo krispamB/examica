@@ -2,7 +2,18 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, Users, FileText, BarChart3, Clock, Edit3, Trash2, Play, Pause, UserCheck } from 'lucide-react'
+import {
+  Plus,
+  Users,
+  FileText,
+  BarChart3,
+  Clock,
+  Edit3,
+  Trash2,
+  Play,
+  Pause,
+  UserCheck,
+} from 'lucide-react'
 import Button from '@/components/ui/Button'
 import type { ExamWithQuestions } from '@/lib/exams/service'
 
@@ -27,12 +38,14 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
     draftExams: 0,
     archivedExams: 0,
     totalAttempts: 0,
-    totalStudents: 0
+    totalStudents: 0,
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedExam, setSelectedExam] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'active' | 'draft' | 'archived'>('all')
+  const [filter, setFilter] = useState<'all' | 'active' | 'draft' | 'archived'>(
+    'all'
+  )
 
   useEffect(() => {
     loadExams()
@@ -59,9 +72,15 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
       // Calculate stats
       const newStats = {
         totalExams: examsData.length,
-        activeExams: examsData.filter((e: { status: string }) => e.status === 'active').length,
-        draftExams: examsData.filter((e: { status: string }) => e.status === 'draft').length,
-        archivedExams: examsData.filter((e: { status: string }) => e.status === 'archived').length,
+        activeExams: examsData.filter(
+          (e: { status: string }) => e.status === 'active'
+        ).length,
+        draftExams: examsData.filter(
+          (e: { status: string }) => e.status === 'draft'
+        ).length,
+        archivedExams: examsData.filter(
+          (e: { status: string }) => e.status === 'archived'
+        ).length,
         totalAttempts: 0, // TODO: Load from exam results
         totalStudents: 0, // TODO: Load from user profiles
       }
@@ -74,7 +93,10 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
     }
   }
 
-  const handleStatusChange = async (examId: string, action: 'publish' | 'archive') => {
+  const handleStatusChange = async (
+    examId: string,
+    action: 'publish' | 'archive'
+  ) => {
     try {
       const endpoint = action === 'publish' ? 'publish' : 'archive'
       const response = await fetch(`/api/exams/${examId}/${endpoint}`, {
@@ -96,7 +118,11 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
   }
 
   const handleDeleteExam = async (examId: string) => {
-    if (!confirm('Are you sure you want to delete this exam? This action cannot be undone.')) {
+    if (
+      !confirm(
+        'Are you sure you want to delete this exam? This action cannot be undone.'
+      )
+    ) {
       return
     }
 
@@ -119,12 +145,12 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
     }
   }
 
-  const filteredExams = exams.filter(exam => {
+  const filteredExams = exams.filter((exam) => {
     if (filter === 'all') return true
     return exam.status === filter
   })
 
-  const getStatusColor = (status: string): string => {
+  const getStatusColor = (status: string | null): string => {
     switch (status) {
       case 'active':
         return 'text-success bg-success-light'
@@ -137,7 +163,8 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
     }
   }
 
-  const formatDate = (dateString: string): string => {
+  const formatDate = (dateString: string | null): string => {
+    if (!dateString) return 'Unknown'
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -157,11 +184,11 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
     return (
       <div className="text-center py-12">
         <FileText className="w-12 h-12 text-error mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-foreground mb-2">Error Loading Exams</h3>
+        <h3 className="text-lg font-medium text-foreground mb-2">
+          Error Loading Exams
+        </h3>
         <p className="text-secondary mb-6">{error}</p>
-        <Button onClick={loadExams}>
-          Try Again
-        </Button>
+        <Button onClick={loadExams}>Try Again</Button>
       </div>
     )
   }
@@ -175,7 +202,9 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
             <FileText className="w-5 h-5 text-primary" />
             <span className="text-sm font-medium text-secondary">Total</span>
           </div>
-          <div className="text-2xl font-bold text-foreground">{stats.totalExams}</div>
+          <div className="text-2xl font-bold text-foreground">
+            {stats.totalExams}
+          </div>
           <div className="text-xs text-secondary">All exams</div>
         </div>
 
@@ -184,7 +213,9 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
             <Play className="w-5 h-5 text-success" />
             <span className="text-sm font-medium text-secondary">Active</span>
           </div>
-          <div className="text-2xl font-bold text-success">{stats.activeExams}</div>
+          <div className="text-2xl font-bold text-success">
+            {stats.activeExams}
+          </div>
           <div className="text-xs text-secondary">Published</div>
         </div>
 
@@ -193,7 +224,9 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
             <Pause className="w-5 h-5 text-warning" />
             <span className="text-sm font-medium text-secondary">Draft</span>
           </div>
-          <div className="text-2xl font-bold text-warning">{stats.draftExams}</div>
+          <div className="text-2xl font-bold text-warning">
+            {stats.draftExams}
+          </div>
           <div className="text-xs text-secondary">Unpublished</div>
         </div>
 
@@ -202,7 +235,9 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
             <Clock className="w-5 h-5 text-secondary" />
             <span className="text-sm font-medium text-secondary">Archived</span>
           </div>
-          <div className="text-2xl font-bold text-foreground">{stats.archivedExams}</div>
+          <div className="text-2xl font-bold text-foreground">
+            {stats.archivedExams}
+          </div>
           <div className="text-xs text-secondary">Inactive</div>
         </div>
 
@@ -211,7 +246,9 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
             <Users className="w-5 h-5 text-info" />
             <span className="text-sm font-medium text-secondary">Students</span>
           </div>
-          <div className="text-2xl font-bold text-foreground">{stats.totalStudents}</div>
+          <div className="text-2xl font-bold text-foreground">
+            {stats.totalStudents}
+          </div>
           <div className="text-xs text-secondary">Enrolled</div>
         </div>
 
@@ -220,7 +257,9 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
             <BarChart3 className="w-5 h-5 text-error" />
             <span className="text-sm font-medium text-secondary">Attempts</span>
           </div>
-          <div className="text-2xl font-bold text-foreground">{stats.totalAttempts}</div>
+          <div className="text-2xl font-bold text-foreground">
+            {stats.totalAttempts}
+          </div>
           <div className="text-xs text-secondary">Total</div>
         </div>
       </div>
@@ -230,7 +269,11 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
         <div className="flex items-center gap-4">
           <select
             value={filter}
-            onChange={(e) => setFilter(e.target.value as 'all' | 'active' | 'draft' | 'archived')}
+            onChange={(e) =>
+              setFilter(
+                e.target.value as 'all' | 'active' | 'draft' | 'archived'
+              )
+            }
             className="px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
           >
             <option value="all">All Exams ({stats.totalExams})</option>
@@ -238,12 +281,13 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
             <option value="draft">Draft ({stats.draftExams})</option>
             <option value="archived">Archived ({stats.archivedExams})</option>
           </select>
-          
+
           <div className="text-sm text-secondary">
-            {filteredExams.length} {filteredExams.length === 1 ? 'exam' : 'exams'} shown
+            {filteredExams.length}{' '}
+            {filteredExams.length === 1 ? 'exam' : 'exams'} shown
           </div>
         </div>
-        
+
         <Link href="/admin/exams/create">
           <Button className="flex items-center gap-2">
             <Plus className="w-4 h-4" />
@@ -262,10 +306,12 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
           <div className="text-center py-12">
             <FileText className="w-16 h-16 text-secondary mx-auto mb-4" />
             <h3 className="text-xl font-medium text-foreground mb-2">
-              {filter === 'all' ? 'No Exams Yet' : `No ${filter.charAt(0).toUpperCase() + filter.slice(1)} Exams`}
+              {filter === 'all'
+                ? 'No Exams Yet'
+                : `No ${filter.charAt(0).toUpperCase() + filter.slice(1)} Exams`}
             </h3>
             <p className="text-secondary mb-6">
-              {filter === 'all' 
+              {filter === 'all'
                 ? 'Get started by creating your first exam'
                 : `No exams with ${filter} status found`}
             </p>
@@ -283,14 +329,30 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
             <table className="w-full">
               <thead className="bg-background-secondary">
                 <tr>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Exam</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Creator</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Status</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Questions</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Duration</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Attempts</th>
-                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">Updated</th>
-                  <th className="text-right px-6 py-3 text-sm font-medium text-secondary">Actions</th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Exam
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Creator
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Status
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Questions
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Duration
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Attempts
+                  </th>
+                  <th className="text-left px-6 py-3 text-sm font-medium text-secondary">
+                    Updated
+                  </th>
+                  <th className="text-right px-6 py-3 text-sm font-medium text-secondary">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -308,7 +370,7 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
                         )}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 bg-primary-light text-primary rounded-full flex items-center justify-center text-xs font-medium">
@@ -317,37 +379,50 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
                         <div className="text-sm text-foreground">Examiner</div>
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
-                      <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(exam.status)}`}>
-                        {exam.status === 'active' && <Play className="w-3 h-3 mr-1" />}
-                        {exam.status === 'draft' && <Pause className="w-3 h-3 mr-1" />}
-                        {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
+                      <div
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(exam.status)}`}
+                      >
+                        {exam.status === 'active' && (
+                          <Play className="w-3 h-3 mr-1" />
+                        )}
+                        {exam.status === 'draft' && (
+                          <Pause className="w-3 h-3 mr-1" />
+                        )}
+                        {exam.status
+                          ? exam.status.charAt(0).toUpperCase() +
+                            exam.status.slice(1)
+                          : 'Unknown'}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-foreground">{exam.question_count || 0}</div>
+                      <div className="text-sm font-medium text-foreground">
+                        {exam.question_count || 0}
+                      </div>
                       <div className="text-xs text-secondary">questions</div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="text-sm text-foreground">
                         {exam.duration ? `${exam.duration}m` : '∞'}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-foreground">0</div>
+                      <div className="text-sm font-medium text-foreground">
+                        0
+                      </div>
                       <div className="text-xs text-secondary">attempts</div>
                     </td>
-                    
+
                     <td className="px-6 py-4">
                       <div className="text-sm text-foreground">
                         {formatDate(exam.updated_at)}
                       </div>
                     </td>
-                    
+
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Link href={`/admin/exams/${exam.id}/analytics`}>
@@ -355,22 +430,26 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
                             <BarChart3 className="w-4 h-4" />
                           </Button>
                         </Link>
-                        
+
                         <Link href={`/admin/exams/${exam.id}/edit`}>
                           <Button variant="ghost" size="sm">
                             <Edit3 className="w-4 h-4" />
                           </Button>
                         </Link>
-                        
+
                         <div className="relative">
                           <Button
-                            onClick={() => setSelectedExam(selectedExam === exam.id ? null : exam.id)}
+                            onClick={() =>
+                              setSelectedExam(
+                                selectedExam === exam.id ? null : exam.id
+                              )
+                            }
                             variant="ghost"
                             size="sm"
                           >
                             •••
                           </Button>
-                          
+
                           {selectedExam === exam.id && (
                             <div className="absolute right-0 mt-1 w-40 bg-background rounded-lg border border-border shadow-lg z-10">
                               <div className="py-1">
@@ -386,7 +465,7 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
                                     Publish
                                   </button>
                                 )}
-                                
+
                                 {exam.status === 'active' && (
                                   <button
                                     onClick={() => {
@@ -399,7 +478,7 @@ const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
                                     Archive
                                   </button>
                                 )}
-                                
+
                                 <div className="border-t border-border my-1" />
                                 <button
                                   onClick={() => {

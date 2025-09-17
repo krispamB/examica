@@ -3,15 +3,15 @@ import { createClient } from '@/lib/supabase/server'
 import { createResultsService } from '@/lib/results/service'
 
 interface Context {
-  params: {
+  params: Promise<{
     examId: string
-  }
+  }>
 }
 
 // GET /api/exams/[examId]/analytics - Get exam analytics
-export async function GET(request: NextRequest, context: Context) {
+export async function GET(_request: NextRequest, context: Context) {
   try {
-    const { examId } = context.params
+    const { examId } = await context.params
     const supabase = await createClient()
 
     // Get current user
@@ -54,10 +54,7 @@ export async function GET(request: NextRequest, context: Context) {
       .single()
 
     if (examError || !exam) {
-      return NextResponse.json(
-        { error: 'Exam not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Exam not found' }, { status: 404 })
     }
 
     const resultsService = createResultsService()
@@ -72,7 +69,6 @@ export async function GET(request: NextRequest, context: Context) {
       exam,
       analytics: result.analytics,
     })
-
   } catch (error) {
     console.error('Exam analytics API error:', error)
     return NextResponse.json(

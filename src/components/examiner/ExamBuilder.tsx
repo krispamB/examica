@@ -671,7 +671,7 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
       <ExamAIGeneratorModal
         isOpen={showExamAIGenerator}
         onClose={() => setShowExamAIGenerator(false)}
-        onExamGenerated={handleExamAIGenerated}
+        onExamGenerated={handleExamAIGenerated as any}
         hasExistingQuestions={form.questions.length > 0}
       />
 
@@ -892,9 +892,9 @@ const QuestionBrowserModal: React.FC<QuestionBrowserModalProps> = ({
                             {question.title}
                           </h4>
                           <span
-                            className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty)}`}
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty || 'medium')}`}
                           >
-                            {question.difficulty}
+                            {question.difficulty || 'medium'}
                           </span>
                         </div>
 

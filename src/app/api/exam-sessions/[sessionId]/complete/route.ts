@@ -10,7 +10,7 @@ interface Context {
 }
 
 // POST /api/exam-sessions/[sessionId]/complete - Complete exam session
-export async function POST(request: NextRequest, context: Context) {
+export async function POST(_request: NextRequest, context: Context) {
   try {
     const { sessionId } = await context.params
     const supabase = await createClient()
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest, context: Context) {
 
     // Check if session is still active - be more permissive
     const validStatuses = ['active', 'in_progress', 'paused']
-    if (!validStatuses.includes(session.status)) {
+    if (!session.status || !validStatuses.includes(session.status)) {
       console.error('Invalid session status for completion:', {
         sessionId,
         status: session.status,
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest, context: Context) {
       )
       const completeResult = await examSessionService.completeExamSession(
         sessionId,
-        supabase
+        createClient()
       )
 
       if (!completeResult.success) {

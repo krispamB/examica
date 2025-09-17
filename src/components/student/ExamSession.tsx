@@ -142,8 +142,8 @@ const ExamSession: React.FC<ExamSessionProps> = ({
         await loadAnswersFromRedis()
 
         // Set initial time
-        if (session.exams.time_limit_minutes) {
-          setTimeLeft(session.exams.time_limit_minutes * 60)
+        if (session.exams.duration) {
+          setTimeLeft(session.exams.duration * 60)
         }
       } catch (err) {
         console.error('Failed to load session data:', err)
@@ -156,7 +156,7 @@ const ExamSession: React.FC<ExamSessionProps> = ({
   }, [
     sessionId,
     session.id,
-    session.exams.time_limit_minutes,
+    session.exams.duration,
     isClientMounted,
     loadAnswersFromRedis,
     onSessionError,

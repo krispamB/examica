@@ -89,7 +89,9 @@ export default async function AdminExamAnalyticsPage({
                     : 'bg-background-secondary text-secondary'
               }`}
             >
-              {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
+              {exam.status
+                ? exam.status.charAt(0).toUpperCase() + exam.status.slice(1)
+                : 'Unknown'}
             </div>
           </div>
         </div>

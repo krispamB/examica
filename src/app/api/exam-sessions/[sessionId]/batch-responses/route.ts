@@ -143,7 +143,7 @@ export async function POST(request: NextRequest, context: Context) {
 }
 
 async function processBatchResponses(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   sessionId: string,
   userId: string,
   responses: BatchResponseRequest['responses']
@@ -177,7 +177,7 @@ async function processBatchResponses(
     const existingMap = new Map(
       existingResponses?.map((r) => [
         r.question_id,
-        new Date(r.updated_at).getTime(),
+        r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
       ]) || []
     )
 
@@ -226,7 +226,7 @@ async function processBatchResponses(
           session_id: sessionId,
           question_id: response.questionId,
           user_id: userId,
-          response: response.response,
+          response: response.response as any,
           is_correct: evaluation.isCorrect,
           points_earned: evaluation.pointsEarned,
           time_spent: null, // Could be calculated from timestamps

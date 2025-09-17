@@ -77,7 +77,7 @@ export class SESEmailProvider implements EmailProvider {
           accessKeyId: this.accessKeyId!,
           secretAccessKey: this.secretAccessKey!,
         },
-      })
+      }) as any
 
       console.log(
         `SES provider initialized successfully in region: ${this.region}`
@@ -138,7 +138,7 @@ export class SESEmailProvider implements EmailProvider {
         }),
       })
 
-      const result = await this.ses.send(command)
+      const result = await (this.ses as any).send(command)
 
       return {
         success: true,

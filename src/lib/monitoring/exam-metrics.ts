@@ -153,7 +153,7 @@ class ExamMetricsService {
     }
 
     // Update system health metrics
-    this.updateSystemMetrics()
+    // this.updateSystemMetrics() // TODO: Implement this method
   }
 
   /**

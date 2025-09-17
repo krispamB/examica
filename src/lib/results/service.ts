@@ -297,21 +297,23 @@ export class ResultsService {
         }
 
         totalQuestions++
-        const questionPoints = question.points || 1
+        const questionPoints = (question as any).points || 1
         maxPossibleScore += questionPoints
 
         // Check if answer is correct based on question type
         let isCorrect = false
 
-        switch (question.type) {
+        switch ((question as any).type) {
           case 'multiple_choice':
             // Handle option ID comparison for multiple choice (same logic as ExamSessionService)
             const userAnswerArray = Array.isArray(response.response)
               ? response.response
               : [String(response.response)]
-            const correctAnswerArray = Array.isArray(question.correct_answer)
-              ? question.correct_answer.map(String)
-              : [String(question.correct_answer)]
+            const correctAnswerArray = Array.isArray(
+              (question as any).correct_answer
+            )
+              ? (question as any).correct_answer.map(String)
+              : [String((question as any).correct_answer)]
 
             // Sort arrays for comparison to handle multiple selections
             const sortedUserAnswer = userAnswerArray.sort()
@@ -321,7 +323,7 @@ export class ResultsService {
               JSON.stringify(sortedUserAnswer) ===
               JSON.stringify(sortedCorrectAnswer)
             console.log(
-              `Question ${question.id} (${question.type}): User answered ${JSON.stringify(sortedUserAnswer)}, correct answer ${JSON.stringify(sortedCorrectAnswer)}, isCorrect: ${isCorrect}`
+              `Question ${(question as any).id} (${(question as any).type}): User answered ${JSON.stringify(sortedUserAnswer)}, correct answer ${JSON.stringify(sortedCorrectAnswer)}, isCorrect: ${isCorrect}`
             )
             break
 
@@ -329,9 +331,9 @@ export class ResultsService {
           case 'fill_blank':
             isCorrect =
               this.normalizeAnswer(response.response) ===
-              this.normalizeAnswer(question.correct_answer)
+              this.normalizeAnswer((question as any).correct_answer)
             console.log(
-              `Question ${question.id} (${question.type}): User answered "${response.response}", correct answer "${question.correct_answer}", isCorrect: ${isCorrect}`
+              `Question ${(question as any).id} (${(question as any).type}): User answered "${response.response}", correct answer "${(question as any).correct_answer}", isCorrect: ${isCorrect}`
             )
             break
 
@@ -341,14 +343,14 @@ export class ResultsService {
             // For now, we'll award partial credit
             isCorrect = false // Requires manual review
             console.log(
-              `Question ${question.id} (${question.type}): Requires manual grading`
+              `Question ${(question as any).id} (${(question as any).type}): Requires manual grading`
             )
             break
 
           default:
             isCorrect = false
             console.log(
-              `Question ${question.id} (${question.type}): Unknown question type`
+              `Question ${(question as any).id} (${(question as any).type}): Unknown question type`
             )
         }
 

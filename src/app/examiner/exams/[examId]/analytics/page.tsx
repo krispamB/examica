@@ -94,7 +94,8 @@ export default async function ExamAnalyticsPage({
                     : 'bg-background-secondary text-secondary'
               }`}
             >
-              {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
+              {(exam.status || 'draft').charAt(0).toUpperCase() +
+                (exam.status || 'draft').slice(1)}
             </div>
           </div>
         </div>
@@ -109,7 +110,7 @@ export default async function ExamAnalyticsPage({
 }
 
 export async function generateMetadata({ params }: ExamAnalyticsPageProps) {
-  const { examId } = params
+  const { examId } = await params
 
   try {
     const examService = createExamService()

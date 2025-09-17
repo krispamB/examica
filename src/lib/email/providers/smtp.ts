@@ -71,7 +71,7 @@ export class SMTPProvider implements EmailProvider {
       // Dynamic import to avoid loading nodemailer if not configured
       const nodemailer = await import('nodemailer')
 
-      this.transporter = nodemailer.default.createTransporter({
+      this.transporter = nodemailer.default.createTransport({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT!),
         secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
@@ -83,7 +83,7 @@ export class SMTPProvider implements EmailProvider {
         tls: {
           rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false',
         },
-      })
+      }) as any
 
       // Verify SMTP connection
       await this.transporter.verify()

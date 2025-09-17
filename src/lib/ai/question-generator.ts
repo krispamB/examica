@@ -543,7 +543,7 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
         parse_error: true,
         error_message: errorMessage,
         raw_content: content,
-      },
+      } as any,
     }
 
     // Add fallback options for multiple choice or null for true/false

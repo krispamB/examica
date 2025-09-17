@@ -100,11 +100,11 @@ async function startExamHandler(
         // Get exam details for time limit
         const { data: examDetails } = await supabase
           .from('exams')
-          .select('time_limit_minutes')
+          .select('duration')
           .eq('id', examId)
           .single()
 
-        const timeLimit = examDetails?.time_limit_minutes || 60
+        const timeLimit = examDetails?.duration || 60
         const examStorage = getExamStorage()
         const redisResult = await examStorage.initExamSession(
           newSession.id,
@@ -191,7 +191,7 @@ async function startExamHandler(
 
     // Initialize/reinitialize Redis session for the restarted session
     try {
-      const timeLimit = exam.time_limit_minutes || 60
+      const timeLimit = exam.duration || 60
       const examStorage = getExamStorage()
       const redisResult = await examStorage.initExamSession(
         updatedSession.id,

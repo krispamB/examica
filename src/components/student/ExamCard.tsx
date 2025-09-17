@@ -128,7 +128,15 @@ const ExamCard: React.FC<ExamCardProps> = ({
                 Latest Score
               </span>
               <span className="text-lg font-bold text-success">
-                {exam.latest_result.percentage?.toFixed(1) || 0}%
+                {exam.latest_result.correct_answers &&
+                exam.latest_result.total_questions
+                  ? (
+                      (exam.latest_result.correct_answers /
+                        exam.latest_result.total_questions) *
+                      100
+                    ).toFixed(1)
+                  : 0}
+                %
               </span>
             </div>
             {exam.latest_result.completed_at && (

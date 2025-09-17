@@ -65,7 +65,7 @@ export class ResendProvider implements EmailProvider {
     try {
       // Dynamic import to avoid loading Resend if not configured
       const { Resend } = await import('resend')
-      this.resend = new Resend(process.env.RESEND_API_KEY)
+      this.resend = new Resend(process.env.RESEND_API_KEY) as any
       console.log('Resend provider initialized successfully')
     } catch (error) {
       console.error('Failed to initialize Resend provider:', error)

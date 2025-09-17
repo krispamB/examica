@@ -194,7 +194,7 @@ const ExaminerResultsView: React.FC<ExaminerResultsViewProps> = ({
           </div>
         </div>
 
-        <ExamResultsHistory userId={selectedResult.user_id} />
+        <ExamResultsHistory userId={selectedResult.user_id || ''} />
       </div>
     )
   }
@@ -513,7 +513,9 @@ const ExaminerResultsView: React.FC<ExaminerResultsViewProps> = ({
 
                     <td className="px-6 py-4">
                       <div className="text-sm text-foreground">
-                        {new Date(result.submitted_at).toLocaleDateString()}
+                        {result.submitted_at
+                          ? new Date(result.submitted_at).toLocaleDateString()
+                          : 'N/A'}
                       </div>
                     </td>
 

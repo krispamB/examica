@@ -104,13 +104,13 @@ export class ScoringService {
 
       // Transform to our working format
       const questions: QuestionData[] = examData.map((eq) => ({
-        id: eq.questions.id,
+        id: (eq.questions as any).id,
         order_index: eq.order_index,
         points: eq.points || 1,
         required: eq.required ?? true,
-        type: eq.questions.type,
-        correct_answer: eq.questions.correct_answer,
-        options: eq.questions.options,
+        type: (eq.questions as any).type,
+        correct_answer: (eq.questions as any).correct_answer,
+        options: (eq.questions as any).options,
       }))
 
       // Sort questions by order (should already be sorted, but ensure consistency)

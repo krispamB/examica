@@ -36,22 +36,21 @@ export default async function AdminCreateExamPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Create New Exam (Admin)</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Create New Exam (Admin)
+          </h1>
           <p className="text-secondary">
             Create an exam with full administrative privileges
           </p>
         </div>
 
-        <ExamBuilder 
-          mode="create" 
-          userId={user.id}
-          onExamCreated={(examId) => {
-            window.location.href = `/admin/exams/${examId}/edit`
+        <ExamBuilder
+          onSave={(exam) => {
+            window.location.href = `/admin/exams/${exam.id}/edit`
           }}
         />
       </div>
     )
-
   } catch (error) {
     console.error('Admin create exam page error:', error)
     redirect('/admin/exams')

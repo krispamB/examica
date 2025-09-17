@@ -14,30 +14,34 @@ export function validateAWSCredentials(): AWSCredentials {
   const region = process.env.AWS_REGION || 'us-east-1'
 
   if (!accessKeyId) {
-    throw new AWSConfigError('AWS_ACCESS_KEY_ID environment variable is required')
+    throw new AWSConfigError(
+      'AWS_ACCESS_KEY_ID environment variable is required'
+    )
   }
 
   if (!secretAccessKey) {
-    throw new AWSConfigError('AWS_SECRET_ACCESS_KEY environment variable is required')
+    throw new AWSConfigError(
+      'AWS_SECRET_ACCESS_KEY environment variable is required'
+    )
   }
 
   return {
     accessKeyId,
     secretAccessKey,
-    region
+    region,
   }
 }
 
 export function createRekognitionClient(): RekognitionClient {
   try {
     const credentials = validateAWSCredentials()
-    
+
     return new RekognitionClient({
       region: credentials.region,
       credentials: {
         accessKeyId: credentials.accessKeyId,
-        secretAccessKey: credentials.secretAccessKey
-      }
+        secretAccessKey: credentials.secretAccessKey,
+      },
     })
   } catch (error) {
     console.error('Failed to create Rekognition client:', error)
@@ -45,50 +49,56 @@ export function createRekognitionClient(): RekognitionClient {
   }
 }
 
-export function handleRekognitionError(error: Error | unknown): RekognitionError {
+export function handleRekognitionError(
+  error: Error | unknown
+): RekognitionError {
   const rekognitionError: RekognitionError = {
-    code: error.name || 'UnknownError',
-    message: error.message || 'An unknown error occurred',
-    retryable: false
+    code: (error as any).name || 'UnknownError',
+    message: (error as any).message || 'An unknown error occurred',
+    retryable: false,
   }
 
   // Handle specific AWS Rekognition errors
-  switch (error.name) {
+  switch ((error as any).name) {
     case 'InvalidImageFormatException':
       rekognitionError.message = 'Invalid image format. Please use JPEG or PNG.'
       rekognitionError.retryable = false
       break
-    
+
     case 'ImageTooLargeException':
-      rekognitionError.message = 'Image is too large. Please use an image smaller than 15MB.'
+      rekognitionError.message =
+        'Image is too large. Please use an image smaller than 15MB.'
       rekognitionError.retryable = false
       break
-    
+
     case 'InvalidS3ObjectException':
-      rekognitionError.message = 'Unable to access the image. Please check the image URL.'
+      rekognitionError.message =
+        'Unable to access the image. Please check the image URL.'
       rekognitionError.retryable = false
       break
-    
+
     case 'ThrottlingException':
-      rekognitionError.message = 'Request rate exceeded. Please try again later.'
+      rekognitionError.message =
+        'Request rate exceeded. Please try again later.'
       rekognitionError.retryable = true
       break
-    
+
     case 'ProvisionedThroughputExceededException':
-      rekognitionError.message = 'Service limit exceeded. Please try again later.'
+      rekognitionError.message =
+        'Service limit exceeded. Please try again later.'
       rekognitionError.retryable = true
       break
-    
+
     case 'InternalServerError':
       rekognitionError.message = 'AWS service error. Please try again later.'
       rekognitionError.retryable = true
       break
-    
+
     case 'InvalidParameterException':
       rekognitionError.message = 'Invalid parameters provided to AWS service.'
       rekognitionError.retryable = false
       break
-    
+
     default:
       console.error('Unhandled AWS Rekognition error:', error)
   }

@@ -9,7 +9,7 @@ interface Context {
 }
 
 // GET /api/exam-sessions/[sessionId] - Get session details
-export async function GET(request: NextRequest, context: Context) {
+export async function GET(_request: NextRequest, context: Context) {
   try {
     const { sessionId } = await context.params
     const supabase = await createClient()

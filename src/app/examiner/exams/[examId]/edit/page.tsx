@@ -79,7 +79,8 @@ export default async function EditExamPage({ params }: EditExamPageProps) {
                   : 'bg-background-secondary text-secondary'
             }`}
           >
-            {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
+            {(exam.status || 'draft').charAt(0).toUpperCase() +
+              (exam.status || 'draft').slice(1)}
           </div>
         </div>
 

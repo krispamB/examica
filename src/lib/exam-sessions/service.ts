@@ -462,7 +462,7 @@ export class ExamSessionService {
         const resultCalculation = providedSupabase
           ? await resultsService.calculateExamResultWithClient(
               sessionId,
-              providedSupabase
+              await providedSupabase
             )
           : await resultsService.calculateExamResult(sessionId)
         console.log(

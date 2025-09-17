@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createExamService } from '@/lib/exams/service'
 
 export async function POST(
-  request: NextRequest,
-  { params }: { params: { examId: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ examId: string }> }
 ) {
   try {
     const supabase = await createClient()

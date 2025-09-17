@@ -35,15 +35,28 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const searchParams = url.searchParams
 
-    const filters: ResultsFilters = {
-      examId: searchParams.get('exam_id') || undefined,
-      userId: searchParams.get('user_id') || undefined,
-      sessionId: searchParams.get('session_id') || undefined,
-      minScore: searchParams.get('min_score') ? parseFloat(searchParams.get('min_score')!) : undefined,
-      maxScore: searchParams.get('max_score') ? parseFloat(searchParams.get('max_score')!) : undefined,
-      completedAfter: searchParams.get('completed_after') || undefined,
-      completedBefore: searchParams.get('completed_before') || undefined,
-    }
+    const filters: ResultsFilters = {}
+
+    const examId = searchParams.get('exam_id')
+    if (examId) filters.examId = examId
+
+    const userId = searchParams.get('user_id')
+    if (userId) filters.userId = userId
+
+    const sessionId = searchParams.get('session_id')
+    if (sessionId) filters.sessionId = sessionId
+
+    const minScore = searchParams.get('min_score')
+    if (minScore) filters.minScore = parseFloat(minScore)
+
+    const maxScore = searchParams.get('max_score')
+    if (maxScore) filters.maxScore = parseFloat(maxScore)
+
+    const completedAfter = searchParams.get('completed_after')
+    if (completedAfter) filters.completedAfter = completedAfter
+
+    const completedBefore = searchParams.get('completed_before')
+    if (completedBefore) filters.completedBefore = completedBefore
 
     // Students can only see their own results
     if (userProfile.role === 'student') {
@@ -71,9 +84,8 @@ export async function GET(request: NextRequest) {
       totalCount: result.totalCount,
       page: options.page,
       limit: options.limit,
-      hasMore: ((result.totalCount || 0) > options.page * options.limit),
+      hasMore: (result.totalCount || 0) > options.page * options.limit,
     })
-
   } catch (error) {
     console.error('Exam results API error:', error)
     return NextResponse.json(
@@ -135,17 +147,13 @@ export async function POST(request: NextRequest) {
     const result = await resultsService.calculateExamResult(body.sessionId)
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
     return NextResponse.json({
       success: true,
       result: result.result,
     })
-
   } catch (error) {
     console.error('Calculate exam result API error:', error)
     return NextResponse.json(

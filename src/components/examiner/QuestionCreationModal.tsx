@@ -119,10 +119,13 @@ const QuestionCreationModal: React.FC<QuestionCreationModalProps> = ({
     if (!formData.content.trim()) return false
 
     if (formData.type === 'multiple_choice') {
-      const options = formData.options || []
+      const options = (formData.options as any[]) || []
       if (options.length < 2) return false
       if (!options.some((opt) => opt.text.trim())) return false
-      if (!formData.correct_answer || formData.correct_answer.length === 0)
+      if (
+        !formData.correct_answer ||
+        (formData.correct_answer as any[])?.length === 0
+      )
         return false
     }
 
@@ -256,7 +259,7 @@ const QuestionCreationModal: React.FC<QuestionCreationModalProps> = ({
                   <MultipleChoiceEditor
                     title={formData.title}
                     content={formData.content}
-                    options={formData.options || []}
+                    options={(formData.options as any) || []}
                     onTitleChange={(title) =>
                       setFormData((prev) => ({ ...prev, title }))
                     }
@@ -277,7 +280,7 @@ const QuestionCreationModal: React.FC<QuestionCreationModalProps> = ({
                   <TrueFalseEditor
                     title={formData.title}
                     content={formData.content}
-                    correctAnswer={formData.correct_answer}
+                    correctAnswer={formData.correct_answer as boolean | null}
                     onTitleChange={(title) =>
                       setFormData((prev) => ({ ...prev, title }))
                     }
@@ -360,144 +363,147 @@ const QuestionCreationModal: React.FC<QuestionCreationModalProps> = ({
                   <div className="border-b border-gray-200 pb-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-lg font-semibold text-gray-900">
-                        {formData.title || 'Untitled Question'}
+                        {(formData.title as string) || 'Untitled Question'}
                       </h4>
                       <div className="flex items-center space-x-2">
                         <span
                           className={`px-2 py-1 rounded text-xs font-medium ${
-                            formData.difficulty === 'easy'
+                            (formData.difficulty as string) === 'easy'
                               ? 'bg-green-100 text-green-800'
-                              : formData.difficulty === 'hard'
+                              : (formData.difficulty as string) === 'hard'
                                 ? 'bg-red-100 text-red-800'
                                 : 'bg-yellow-100 text-yellow-800'
                           }`}
                         >
-                          {formData.difficulty}
+                          {formData.difficulty as string}
                         </span>
                         <span className="text-sm text-gray-500">
-                          {formData.points}{' '}
-                          {formData.points === 1 ? 'point' : 'points'}
+                          {formData.points as number}{' '}
+                          {(formData.points as number) === 1
+                            ? 'point'
+                            : 'points'}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Question Content */}
-                  <div>
-                    <p className="text-gray-900 text-base leading-relaxed whitespace-pre-wrap">
-                      {formData.content}
-                    </p>
-                  </div>
+                  <>
+                    <div>
+                      <p className="text-gray-900 text-base leading-relaxed whitespace-pre-wrap">
+                        {String(formData.content || '')}
+                      </p>
+                    </div>
 
-                  {/* Answer Options */}
-                  {formData.type === 'multiple_choice' &&
-                    formData.options &&
-                    Array.isArray(formData.options) && (
-                      <div className="space-y-3">
-                        {(
-                          formData.options as Array<{
-                            id: string
-                            text: string
-                            isCorrect: boolean
-                          }>
-                        ).map((option, index) => (
-                          <div
-                            key={option.id}
-                            className={`p-3 border rounded-lg ${
-                              option.isCorrect
-                                ? 'border-green-200 bg-green-50'
-                                : 'border-gray-200'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium">
-                                {String.fromCharCode(65 + index)}
-                              </span>
-                              <span className="text-gray-900">
-                                {option.text}
-                              </span>
-                              {option.isCorrect && (
-                                <span className="ml-auto text-green-600 text-sm font-medium">
-                                  ✓ Correct
+                    {/* Answer Options */}
+                    {formData.type === 'multiple_choice' &&
+                      formData.options &&
+                      Array.isArray(formData.options) && (
+                        <div className="space-y-3">
+                          {(
+                            formData.options as Array<{
+                              id: string
+                              text: string
+                              isCorrect: boolean
+                            }>
+                          ).map((option, index) => (
+                            <div
+                              key={option.id}
+                              className={`p-3 border rounded-lg ${
+                                option.isCorrect
+                                  ? 'border-green-200 bg-green-50'
+                                  : 'border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium">
+                                  {String.fromCharCode(65 + index)}
                                 </span>
-                              )}
+                                <span className="text-gray-900">
+                                  {option.text}
+                                </span>
+                                {option.isCorrect && (
+                                  <span className="ml-auto text-green-600 text-sm font-medium">
+                                    ✓ Correct
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                      )}
+
+                    {formData.type === 'true_false' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div
+                          className={`p-4 border rounded-lg text-center ${
+                            formData.correct_answer === true
+                              ? 'border-green-200 bg-green-50'
+                              : 'border-gray-200'
+                          }`}
+                        >
+                          <span className="text-lg font-medium">True</span>
+                          {formData.correct_answer === true && (
+                            <div className="text-green-600 text-sm font-medium mt-1">
+                              ✓ Correct Answer
+                            </div>
+                          )}
+                        </div>
+                        <div
+                          className={`p-4 border rounded-lg text-center ${
+                            formData.correct_answer === false
+                              ? 'border-green-200 bg-green-50'
+                              : 'border-gray-200'
+                          }`}
+                        >
+                          <span className="text-lg font-medium">False</span>
+                          {formData.correct_answer === false && (
+                            <div className="text-green-600 text-sm font-medium mt-1">
+                              ✓ Correct Answer
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
-                  {formData.type === 'true_false' && (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div
-                        className={`p-4 border rounded-lg text-center ${
-                          formData.correct_answer === true
-                            ? 'border-green-200 bg-green-50'
-                            : 'border-gray-200'
-                        }`}
-                      >
-                        <span className="text-lg font-medium">True</span>
-                        {formData.correct_answer === true && (
-                          <div className="text-green-600 text-sm font-medium mt-1">
-                            ✓ Correct Answer
-                          </div>
-                        )}
-                      </div>
-                      <div
-                        className={`p-4 border rounded-lg text-center ${
-                          formData.correct_answer === false
-                            ? 'border-green-200 bg-green-50'
-                            : 'border-gray-200'
-                        }`}
-                      >
-                        <span className="text-lg font-medium">False</span>
-                        {formData.correct_answer === false && (
-                          <div className="text-green-600 text-sm font-medium mt-1">
-                            ✓ Correct Answer
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Question Metadata */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                      {formData.category && (
-                        <span>
-                          Category:{' '}
-                          <span className="font-medium">
-                            {formData.category}
+                    {/* Question Metadata */}
+                    <div className="border-t border-gray-200 pt-4">
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                        {formData.category && (
+                          <span>
+                            Category:{' '}
+                            <span className="font-medium">
+                              {formData.category}
+                            </span>
                           </span>
-                        </span>
-                      )}
-                      {formData.tags && formData.tags.length > 0 && (
-                        <div className="flex items-center space-x-1">
-                          <span>Tags:</span>
-                          <div className="flex space-x-1">
-                            {formData.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
-                              >
-                                {tag}
-                              </span>
-                            ))}
+                        )}
+                        {formData.tags && formData.tags.length > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <span>Tags:</span>
+                            <div className="flex space-x-1">
+                              {formData.tags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
                           </div>
+                        )}
+                      </div>
+                      {formData.explanation && (
+                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                          <h5 className="text-sm font-medium text-blue-900 mb-1">
+                            Explanation:
+                          </h5>
+                          <p className="text-sm text-blue-800">
+                            {formData.explanation}
+                          </p>
                         </div>
                       )}
                     </div>
-                    {formData.explanation && (
-                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
-                        <h5 className="text-sm font-medium text-blue-900 mb-1">
-                          Explanation:
-                        </h5>
-                        <p className="text-sm text-blue-800">
-                          {formData.explanation}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  </>
                 </div>
               </div>
             </div>
