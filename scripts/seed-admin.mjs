@@ -39,8 +39,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 async function createAdminUser() {
   console.log('🔧 Creating admin user...')
   
-  const adminEmail = 'admin@examica.com'
-  const adminPassword = 'bl4ckA$$'
+  const adminEmail = '********'
+  const adminPassword = '********'
   
   try {
     // Create user using admin API
@@ -50,9 +50,9 @@ async function createAdminUser() {
       password: adminPassword,
       email_confirm: true, // Skip email confirmation
       user_metadata: {
-        first_name: 'Admin',
-        last_name: 'User',
-        role: 'admin'
+        first_name: '********',
+        last_name: '********',
+        role: '********'
       }
     })
 
