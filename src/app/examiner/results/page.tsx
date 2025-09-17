@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ExaminerResultsView from './ExaminerResultsView'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ExaminerResultsPage() {
   try {
     // Create Supabase client

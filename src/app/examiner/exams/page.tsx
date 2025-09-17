@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ExaminerExamsList from './ExaminerExamsList'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ExaminerExamsPage() {
   try {
     // Create Supabase client
@@ -47,7 +49,6 @@ export default async function ExaminerExamsPage() {
         <ExaminerExamsList userId={user.id} userRole={userProfile.role} />
       </div>
     )
-
   } catch (error) {
     console.error('Examiner exams page error:', error)
     redirect('/examiner')

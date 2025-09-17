@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminExamManagement from './AdminExamManagement'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminExamsPage() {
   try {
     // Create Supabase client
@@ -37,7 +39,9 @@ export default async function AdminExamsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Exam Management</h1>
+            <h1 className="text-2xl font-bold text-foreground">
+              Exam Management
+            </h1>
             <p className="text-secondary">
               System-wide exam oversight and administration
             </p>
@@ -47,7 +51,6 @@ export default async function AdminExamsPage() {
         <AdminExamManagement userId={user.id} />
       </div>
     )
-
   } catch (error) {
     console.error('Admin exams page error:', error)
     redirect('/admin')

@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import AdminDashboardContent from './AdminDashboardContent'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminDashboard() {
   try {
     // Create Supabase client
@@ -34,7 +36,6 @@ export default async function AdminDashboard() {
     }
 
     return <AdminDashboardContent userId={user.id} />
-
   } catch (error) {
     console.error('Admin dashboard error:', error)
     redirect('/login')

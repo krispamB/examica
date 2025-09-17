@@ -2,6 +2,8 @@ import InvitationAcceptanceForm from '@/components/auth/InvitationAcceptanceForm
 import Card from '@/components/ui/Card'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default function AcceptInvitationPage() {
   return (
     <Card className="shadow-md">

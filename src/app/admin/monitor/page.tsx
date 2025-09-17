@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ExamMonitorDashboard from '@/components/examiner/ExamMonitorDashboard'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminMonitorPage() {
   try {
     // Create Supabase client
@@ -36,7 +38,9 @@ export default async function AdminMonitorPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground mb-2">Exam Monitor</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            Exam Monitor
+          </h1>
           <p className="text-secondary">
             Real-time monitoring of all exam sessions across the platform
           </p>
@@ -45,7 +49,6 @@ export default async function AdminMonitorPage() {
         <ExamMonitorDashboard />
       </div>
     )
-
   } catch (error) {
     console.error('Admin monitor page error:', error)
     redirect('/dashboard')

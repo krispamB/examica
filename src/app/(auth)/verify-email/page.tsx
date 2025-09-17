@@ -1,6 +1,18 @@
+import { Suspense } from 'react'
 import EmailVerificationHandler from '@/components/auth/EmailVerificationHandler'
 import Card from '@/components/ui/Card'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
+
+function VerificationFallback() {
+  return (
+    <div className="text-center space-y-4">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+      <p className="text-secondary">Loading verification...</p>
+    </div>
+  )
+}
 
 export default function VerifyEmailPage() {
   return (
@@ -15,7 +27,9 @@ export default function VerifyEmailPage() {
           </p>
         </div>
 
-        <EmailVerificationHandler />
+        <Suspense fallback={<VerificationFallback />}>
+          <EmailVerificationHandler />
+        </Suspense>
 
         <div className="text-center">
           <p className="text-sm text-secondary">

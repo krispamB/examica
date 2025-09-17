@@ -1,6 +1,15 @@
+import { Suspense } from 'react'
 import ResetPasswordForm from '@/components/auth/ResetPasswordForm'
 import Card from '@/components/ui/Card'
 import Link from 'next/link'
+
+function ResetPasswordContent() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ResetPasswordForm />
+    </Suspense>
+  )
+}
 
 export default function ResetPasswordPage() {
   return (
@@ -15,7 +24,7 @@ export default function ResetPasswordPage() {
           </p>
         </div>
 
-        <ResetPasswordForm />
+        <ResetPasswordContent />
 
         <div className="text-center">
           <p className="text-sm text-secondary">

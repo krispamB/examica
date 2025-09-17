@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ExamResultsHistory from '@/components/student/ExamResultsHistory'
 
+export const dynamic = 'force-dynamic'
+
 export default async function StudentResultsPage() {
   try {
     // Create Supabase client

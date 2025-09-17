@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ExamBuilder from '@/components/examiner/ExamBuilder'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminCreateExamPage() {
   try {
     // Create Supabase client

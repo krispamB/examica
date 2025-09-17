@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ExaminerAnalyticsOverview from './ExaminerAnalyticsOverview'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ExaminerAnalyticsPage() {
   try {
     // Create Supabase client
@@ -36,16 +38,20 @@ export default async function ExaminerAnalyticsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Analytics Overview</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Analytics Overview
+          </h1>
           <p className="text-secondary">
             Performance insights across all your exams and students
           </p>
         </div>
 
-        <ExaminerAnalyticsOverview userId={user.id} userRole={userProfile.role} />
+        <ExaminerAnalyticsOverview
+          userId={user.id}
+          userRole={userProfile.role}
+        />
       </div>
     )
-
   } catch (error) {
     console.error('Examiner analytics page error:', error)
     redirect('/examiner')

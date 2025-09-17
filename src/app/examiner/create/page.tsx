@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import CreateExamClient from './CreateExamClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function CreateExamPage() {
   try {
     // Create Supabase client
@@ -36,16 +38,18 @@ export default async function CreateExamPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Create New Exam</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Create New Exam
+          </h1>
           <p className="text-secondary">
-            Design your exam by adding questions, setting time limits, and configuring options
+            Design your exam by adding questions, setting time limits, and
+            configuring options
           </p>
         </div>
 
         <CreateExamClient userId={user.id} />
       </div>
     )
-
   } catch (error) {
     console.error('Create exam page error:', error)
     redirect('/examiner')

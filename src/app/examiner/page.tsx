@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ExaminerDashboardContent from './ExaminerDashboardContent'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ExaminerDashboard() {
   try {
     // Create Supabase client
@@ -33,8 +35,9 @@ export default async function ExaminerDashboard() {
       redirect('/dashboard')
     }
 
-    return <ExaminerDashboardContent userId={user.id} userRole={userProfile.role} />
-
+    return (
+      <ExaminerDashboardContent userId={user.id} userRole={userProfile.role} />
+    )
   } catch (error) {
     console.error('Examiner dashboard error:', error)
     redirect('/login')
