@@ -11,18 +11,18 @@ const Card: React.FC<CardProps> = ({
   return (
     <div
       className={cn(
-        'bg-white rounded-lg border border-gray-200 shadow-sm',
+        'bg-background rounded-lg border border-border shadow-sm',
         className
       )}
       {...props}
     >
       {(title || description) && (
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-border">
           {title && (
-            <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+            <h3 className="text-lg font-medium text-foreground">{title}</h3>
           )}
           {description && (
-            <p className="mt-1 text-sm text-gray-600">{description}</p>
+            <p className="mt-1 text-sm text-secondary">{description}</p>
           )}
         </div>
       )}

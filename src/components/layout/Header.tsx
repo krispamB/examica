@@ -21,7 +21,7 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header
       className={cn(
-        'bg-white shadow-sm border-b border-gray-200 px-6 py-4',
+        'bg-background shadow-sm border-b border-border px-6 py-4',
         className
       )}
       {...props}
@@ -50,7 +50,7 @@ const Header: React.FC<HeaderProps> = ({
               </svg>
             </Button>
           )}
-          <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+          <h1 className="text-xl font-semibold text-foreground">{title}</h1>
         </div>
 
         <div className="flex items-center space-x-4">
@@ -65,7 +65,7 @@ const Header: React.FC<HeaderProps> = ({
               >
                 <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                   <svg
-                    className="w-5 h-5 text-gray-600"
+                    className="w-5 h-5 text-secondary"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -77,7 +77,7 @@ const Header: React.FC<HeaderProps> = ({
                   </svg>
                 </div>
                 <svg
-                  className="w-4 h-4 text-gray-600"
+                  className="w-4 h-4 text-secondary"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

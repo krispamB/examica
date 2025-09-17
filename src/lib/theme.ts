@@ -1,60 +1,47 @@
 export const theme = {
   colors: {
-    // Primary brand colors
+    // Primary brand colors (matches design tokens)
     primary: {
-      50: '#dbeafe',
-      100: '#bfdbfe',
-      200: '#93c5fd',
-      300: '#60a5fa',
-      400: '#3b82f6',
-      500: '#2563eb', // Main primary
+      50: '#eff6ff',
+      100: '#dbeafe',
+      500: '#2563eb',
       600: '#1d4ed8',
       700: '#1e40af',
-      800: '#1e3a8a',
-      900: '#1e3a8a',
+      hover: '#1d4ed8',
+      light: '#dbeafe',
+      DEFAULT: '#2563eb',
     },
 
     // Secondary colors
     secondary: {
+      DEFAULT: '#64748b',
+      hover: '#475569',
+    },
+
+    // Semantic colors (matches design tokens)
+    semantic: {
+      success: '#059669',
+      successLight: '#d1fae5',
+      warning: '#d97706',
+      warningLight: '#fef3c7',
+      error: '#dc2626',
+      errorLight: '#fee2e2',
+      info: '#0891b2',
+      infoLight: '#cffafe',
+    },
+
+    // Neutral colors (matches design tokens)
+    neutral: {
       50: '#f8fafc',
       100: '#f1f5f9',
       200: '#e2e8f0',
       300: '#cbd5e1',
       400: '#94a3b8',
-      500: '#64748b', // Main secondary
+      500: '#64748b',
       600: '#475569',
       700: '#334155',
       800: '#1e293b',
       900: '#0f172a',
-    },
-
-    // Status colors
-    success: {
-      50: '#ecfdf5',
-      100: '#d1fae5',
-      500: '#059669', // Main success
-      600: '#047857',
-    },
-
-    warning: {
-      50: '#fefbf2',
-      100: '#fef3c7',
-      500: '#d97706', // Main warning
-      600: '#b45309',
-    },
-
-    error: {
-      50: '#fef2f2',
-      100: '#fee2e2',
-      500: '#dc2626', // Main error
-      600: '#b91c1c',
-    },
-
-    info: {
-      50: '#f0fdfa',
-      100: '#cffafe',
-      500: '#0891b2', // Main info
-      600: '#0e7490',
     },
   },
 

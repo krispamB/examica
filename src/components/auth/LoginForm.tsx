@@ -1,16 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { useAuth } from '@/hooks/useAuth'
+import { getDefaultRedirectPath } from '@/lib/auth'
 import { type BaseComponentProps } from '@/types/ui'
 
 interface LoginFormProps extends BaseComponentProps {
-  onSubmit?: (email: string, password: string) => Promise<void>
+  onSuccess?: () => void
 }
 
 const LoginForm: React.FC<LoginFormProps> = ({
-  onSubmit,
+  onSuccess,
   className,
   ...props
 }) => {
@@ -19,15 +23,29 @@ const LoginForm: React.FC<LoginFormProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const { signIn, user, profile, loading: authLoading } = useAuth()
+  const router = useRouter()
+
+  // Redirect user after successful login
+  useEffect(() => {
+    if (user && profile && !authLoading) {
+      const redirectPath = getDefaultRedirectPath(profile.role)
+      router.push(redirectPath)
+    }
+  }, [user, profile, authLoading, router])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!onSubmit) return
-
     setLoading(true)
     setError(null)
 
     try {
-      await onSubmit(email, password)
+      const { error } = await signIn(email, password)
+
+      if (error) throw new Error(error)
+
+      onSuccess?.()
+      // Redirect will be handled by the useEffect hook when auth state updates
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -39,7 +57,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
     <form onSubmit={handleSubmit} className={className} {...props}>
       <div className="space-y-6">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+          <div className="bg-error-light border border-error/20 text-error px-4 py-3 rounded-md">
             {error}
           </div>
         )}
@@ -70,24 +88,24 @@ const LoginForm: React.FC<LoginFormProps> = ({
               id="remember-me"
               name="remember-me"
               type="checkbox"
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
               disabled={loading}
             />
             <label
               htmlFor="remember-me"
-              className="ml-2 block text-sm text-gray-900"
+              className="ml-2 block text-sm text-foreground"
             >
               Remember me
             </label>
           </div>
 
           <div className="text-sm">
-            <a
-              href="#"
-              className="font-medium text-blue-600 hover:text-blue-500"
+            <Link
+              href="/forgot-password"
+              className="font-medium text-primary hover:text-primary-hover"
             >
               Forgot your password?
-            </a>
+            </Link>
           </div>
         </div>
 

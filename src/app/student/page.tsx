@@ -2,42 +2,46 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Student Dashboard</h2>
-        <p className="mt-2 text-gray-600">
+        <h2 className="text-2xl font-bold text-foreground">
+          Dashboard Overview
+        </h2>
+        <p className="mt-2 text-secondary">
           Welcome to your examination portal. View available exams and track
           your progress.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold text-gray-900">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-border">
+          <h3 className="text-lg font-semibold text-foreground">
             Available Exams
           </h3>
-          <p className="mt-2 text-3xl font-bold text-blue-600">0</p>
-          <p className="mt-1 text-sm text-gray-500">Ready to take</p>
+          <p className="mt-2 text-3xl font-bold text-primary">0</p>
+          <p className="mt-1 text-sm text-secondary">Ready to take</p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold text-gray-900">Completed</h3>
-          <p className="mt-2 text-3xl font-bold text-green-600">0</p>
-          <p className="mt-1 text-sm text-gray-500">Exams completed</p>
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-border">
+          <h3 className="text-lg font-semibold text-foreground">Completed</h3>
+          <p className="mt-2 text-3xl font-bold text-success">0</p>
+          <p className="mt-1 text-sm text-secondary">Exams completed</p>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-semibold text-gray-900">Average Score</h3>
-          <p className="mt-2 text-3xl font-bold text-purple-600">-</p>
-          <p className="mt-1 text-sm text-gray-500">Your performance</p>
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-border">
+          <h3 className="text-lg font-semibold text-foreground">
+            Average Score
+          </h3>
+          <p className="mt-2 text-3xl font-bold text-info">-</p>
+          <p className="mt-1 text-sm text-secondary">Your performance</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-lg shadow-sm border border-border">
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Upcoming Exams
           </h3>
           <div className="text-center py-8">
-            <div className="text-gray-400 mb-2">
+            <div className="text-secondary mb-2">
               <svg
                 className="w-12 h-12 mx-auto"
                 fill="currentColor"
@@ -50,18 +54,18 @@ export default function StudentDashboard() {
                 />
               </svg>
             </div>
-            <p className="text-gray-500">No upcoming exams scheduled</p>
+            <p className="text-secondary">No upcoming exams scheduled</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-lg shadow-sm border border-border">
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-foreground mb-4">
             Recent Activity
           </h3>
           <div className="text-center py-8">
-            <div className="text-gray-400 mb-2">
+            <div className="text-secondary mb-2">
               <svg
                 className="w-12 h-12 mx-auto"
                 fill="currentColor"
@@ -74,7 +78,7 @@ export default function StudentDashboard() {
                 />
               </svg>
             </div>
-            <p className="text-gray-500">No recent activity</p>
+            <p className="text-secondary">No recent activity</p>
           </div>
         </div>
       </div>
