@@ -12,12 +12,16 @@ import {
   Eye,
   CheckCircle,
   X,
+  Brain,
+  Wand2,
 } from 'lucide-react'
 import type { Question } from '@/lib/questions/service'
 import type { ExamCreateData } from '@/lib/exams/service'
 import QuestionCreationModal, {
   type QuestionFormData,
 } from './QuestionCreationModal'
+import ExamAIGeneratorModal from './ExamAIGeneratorModal'
+import GenerateQuestionModal from './GenerateQuestionModal'
 
 interface ExamBuilderProps {
   examId?: string // For editing existing exams
@@ -54,9 +58,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     questions: [],
   })
 
-  // Removed unused state variables for cleaner code
+  // Modal states
   const [showQuestionBrowser, setShowQuestionBrowser] = useState(false)
   const [showQuestionCreator, setShowQuestionCreator] = useState(false)
+  const [showExamAIGenerator, setShowExamAIGenerator] = useState(false)
+  const [showQuestionAIGenerator, setShowQuestionAIGenerator] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -238,6 +244,83 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
     return form.questions.reduce((sum, q) => sum + (q.points || 1), 0)
   }
 
+  // AI Generation Handlers
+  const handleExamAIGenerated = async (examData: {
+    title: string
+    description: string
+    duration: number
+    questions: Array<{
+      title: string
+      content: string
+      type: 'multiple_choice' | 'true_false'
+      difficulty: 'easy' | 'medium' | 'hard'
+      options?: Array<{ id: string; text: string; isCorrect: boolean }> | null
+      correct_answer: string | string[]
+      explanation: string
+      points: number
+      category: string
+      tags: string[]
+    }>
+  }) => {
+    try {
+      setError(null)
+      setSaving(true)
+
+      // First, create the questions in the database
+      const response = await fetch('/api/questions/bulk-create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questions: examData.questions,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create questions')
+      }
+
+      const result = await response.json()
+
+      if (!result.success || !result.questions) {
+        throw new Error('Failed to create questions in database')
+      }
+
+      // Update form with generated exam data using real question IDs
+      setForm((prev) => ({
+        ...prev,
+        title: examData.title || prev.title,
+        description: examData.description || prev.description,
+        duration: examData.duration || prev.duration,
+        questions: result.questions.map(
+          (question: Question, index: number) => ({
+            question_id: question.id, // Real database ID
+            order_index: index,
+            points: question.points || 1,
+            required: true,
+            question: question,
+          })
+        ),
+      }))
+
+      setShowExamAIGenerator(false)
+    } catch (error) {
+      console.error('Failed to create AI questions:', error)
+      setError(
+        error instanceof Error ? error.message : 'Failed to create AI questions'
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleQuestionsGenerated = () => {
+    setShowQuestionAIGenerator(false)
+    // Optionally refresh question browser or show success message
+  }
+
   const getQuestionTypeIcon = (type: string) => {
     switch (type) {
       case 'multiple_choice':
@@ -281,6 +364,52 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* Context-aware AI generation buttons */}
+            <div className="flex items-center gap-2">
+              {form.questions.length === 0 ? (
+                <>
+                  {/* Primary: Complete exam generation when exam is empty */}
+                  <button
+                    onClick={() => setShowExamAIGenerator(true)}
+                    className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 flex items-center gap-2 transition-colors"
+                    title="Generate a complete exam with AI-powered questions"
+                  >
+                    <Brain className="w-4 h-4" />
+                    Generate Complete Exam
+                  </button>
+                  {/* Secondary: Option to just add questions */}
+                  <button
+                    onClick={() => setShowQuestionAIGenerator(true)}
+                    className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-1 transition-colors text-sm"
+                    title="Or just generate individual questions"
+                  >
+                    <Wand2 className="w-3 h-3" />
+                    Questions Only
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Primary: Add questions when exam has content */}
+                  <button
+                    onClick={() => setShowQuestionAIGenerator(true)}
+                    className="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 flex items-center gap-2 transition-colors"
+                    title="Add AI-generated questions to this exam"
+                  >
+                    <Wand2 className="w-4 h-4" />
+                    Add AI Questions
+                  </button>
+                  {/* Secondary: Option to regenerate entire exam */}
+                  <button
+                    onClick={() => setShowExamAIGenerator(true)}
+                    className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 flex items-center gap-1 transition-colors text-sm"
+                    title="Or generate a complete new exam structure"
+                  >
+                    <Brain className="w-3 h-3" />
+                    Full Exam
+                  </button>
+                </>
+              )}
+            </div>
             <button
               onClick={() => setShowQuestionBrowser(true)}
               className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center gap-2"
@@ -536,6 +665,20 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         isOpen={showQuestionCreator}
         onClose={() => setShowQuestionCreator(false)}
         onSave={createQuestion}
+      />
+
+      {/* AI Generation Modals */}
+      <ExamAIGeneratorModal
+        isOpen={showExamAIGenerator}
+        onClose={() => setShowExamAIGenerator(false)}
+        onExamGenerated={handleExamAIGenerated}
+        hasExistingQuestions={form.questions.length > 0}
+      />
+
+      <GenerateQuestionModal
+        isOpen={showQuestionAIGenerator}
+        onClose={() => setShowQuestionAIGenerator(false)}
+        onQuestionsGenerated={handleQuestionsGenerated}
       />
     </div>
   )

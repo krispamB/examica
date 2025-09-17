@@ -52,6 +52,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate supported question types
+    const supportedTypes = ['multiple_choice', 'true_false']
+    if (!supportedTypes.includes(body.type)) {
+      return NextResponse.json(
+        {
+          error: `Unsupported question type: ${body.type}. Supported types: ${supportedTypes.join(', ')}`,
+          supported_types: supportedTypes,
+        },
+        { status: 400 }
+      )
+    }
+
     // Prepare generation request
     const generationRequest: QuestionGenerationRequest = {
       topic: body.topic,
@@ -65,13 +77,14 @@ export async function POST(request: NextRequest) {
 
     // Generate questions using AI
     const generator = getQuestionGenerator()
-    const generationResult = await generator.generateQuestions(generationRequest)
+    const generationResult =
+      await generator.generateQuestions(generationRequest)
 
     if (!generationResult.success) {
       return NextResponse.json(
-        { 
+        {
           error: `Question generation failed: ${generationResult.error}`,
-          details: generationResult.metadata 
+          details: generationResult.metadata,
         },
         { status: 500 }
       )
@@ -112,7 +125,6 @@ export async function POST(request: NextRequest) {
       generation_metadata: generationResult.metadata,
       generator: userProfile.first_name + ' ' + userProfile.last_name,
     })
-
   } catch (error) {
     console.error('Question generation API error:', error)
     return NextResponse.json(
@@ -180,7 +192,15 @@ export async function PATCH(request: NextRequest) {
     const results = await generator.generateQuestionSet(topic, specifications)
 
     // Aggregate all questions and results
-    const allQuestions: { type: string; question: string; options?: string[]; answer: string; explanation?: string; points: number; difficulty: string }[] = []
+    const allQuestions: {
+      type: string
+      question: string
+      options?: string[]
+      answer: string
+      explanation?: string
+      points: number
+      difficulty: string
+    }[] = []
     let totalGenerated = 0
     let totalSaved = 0
     const errors: string[] = []
@@ -220,7 +240,6 @@ export async function PATCH(request: NextRequest) {
       generation_results: results,
       generator: userProfile.first_name + ' ' + userProfile.last_name,
     })
-
   } catch (error) {
     console.error('Batch question generation API error:', error)
     return NextResponse.json(

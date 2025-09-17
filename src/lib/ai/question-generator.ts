@@ -11,7 +11,7 @@ export type QuestionDifficulty = 'easy' | 'medium' | 'hard'
 interface ParsedQuestionFromAI {
   title?: string
   content: string
-  options?: string[]
+  options?: Array<{ id: string; text: string; isCorrect: boolean }> | null
   correct_answer: string | number | boolean | string[]
   explanation?: string
   points?: number
@@ -34,7 +34,7 @@ export interface GeneratedQuestion {
   content: string
   type: QuestionType
   difficulty: QuestionDifficulty
-  options?: string[] // For multiple choice
+  options?: Array<{ id: string; text: string; isCorrect: boolean }> | null // For multiple choice or null for true/false
   correct_answer: string | number | boolean | string[]
   explanation: string
   points: number
@@ -151,6 +151,137 @@ class AIQuestionGenerator {
   }
 
   private buildPrompt(request: QuestionGenerationRequest): string {
+    // Use type-specific optimized prompts for supported types
+    if (request.type === 'multiple_choice') {
+      return this.buildMultipleChoicePrompt(request)
+    }
+
+    if (request.type === 'true_false') {
+      return this.buildTrueFalsePrompt(request)
+    }
+
+    // Fallback to generic prompt for unsupported types (should not happen in UI)
+    return this.buildGenericPrompt(request)
+  }
+
+  private buildMultipleChoicePrompt(
+    request: QuestionGenerationRequest
+  ): string {
+    const count = request.count || 1
+    const difficulty = request.difficulty
+    const topic = request.topic
+    const subject = request.subject ? ` (${request.subject})` : ''
+
+    let systemPrompt = `You are an expert educator creating ${difficulty}-level multiple choice questions about ${topic}${subject}.
+
+REQUIREMENTS:
+- Generate exactly ${count} question(s)
+- Each question must have exactly 4 options (A, B, C, D)
+- Only ONE correct answer per question
+- Three plausible but clearly incorrect distractors
+- Academic quality appropriate for ${difficulty} difficulty
+- Clear, unambiguous wording`
+
+    if (request.context) {
+      systemPrompt += `\n- Additional context: ${request.context}`
+    }
+
+    if (request.learningObjectives && request.learningObjectives.length > 0) {
+      systemPrompt += `\n- Address these learning objectives: ${request.learningObjectives.join(', ')}`
+    }
+
+    systemPrompt += `
+
+OUTPUT FORMAT (valid JSON array):
+\`\`\`json
+[
+  {
+    "title": "Concise question title",
+    "content": "Clear question stem",
+    "options": [
+      {
+        "id": "1",
+        "text": "First option",
+        "isCorrect": false
+      },
+      {
+        "id": "2",
+        "text": "Second option",
+        "isCorrect": false
+      },
+      {
+        "id": "3",
+        "text": "Third option",
+        "isCorrect": true
+      },
+      {
+        "id": "4",
+        "text": "Fourth option",
+        "isCorrect": false
+      }
+    ],
+    "correct_answer": ["3"],
+    "explanation": "Brief explanation of correct answer",
+    "points": ${this.getDefaultPoints(difficulty)},
+    "category": "${request.subject || topic}",
+    "tags": ["${topic.toLowerCase()}", "${difficulty}"]
+  }
+]
+\`\`\`
+
+Generate ${count} high-quality multiple choice question(s). Ensure perfect JSON formatting.`
+
+    return systemPrompt
+  }
+
+  private buildTrueFalsePrompt(request: QuestionGenerationRequest): string {
+    const count = request.count || 1
+    const difficulty = request.difficulty
+    const topic = request.topic
+    const subject = request.subject ? ` (${request.subject})` : ''
+
+    let systemPrompt = `You are an expert educator creating ${difficulty}-level true/false questions about ${topic}${subject}.
+
+REQUIREMENTS:
+- Generate exactly ${count} question(s)
+- Each statement must be definitively true OR false
+- Avoid ambiguous or opinion-based statements
+- Test specific knowledge, not trivial facts
+- Academic quality appropriate for ${difficulty} difficulty
+- Clear, unambiguous wording`
+
+    if (request.context) {
+      systemPrompt += `\n- Additional context: ${request.context}`
+    }
+
+    if (request.learningObjectives && request.learningObjectives.length > 0) {
+      systemPrompt += `\n- Address these learning objectives: ${request.learningObjectives.join(', ')}`
+    }
+
+    systemPrompt += `
+
+OUTPUT FORMAT (valid JSON array):
+\`\`\`json
+[
+  {
+    "title": "Concise question title",
+    "content": "Clear true/false statement",
+    "options": null,
+    "correct_answer": "true",
+    "explanation": "Brief explanation of why statement is true/false",
+    "points": ${this.getDefaultPoints(difficulty)},
+    "category": "${request.subject || topic}",
+    "tags": ["${topic.toLowerCase()}", "${difficulty}"]
+  }
+]
+\`\`\`
+
+Generate ${count} high-quality true/false question(s). Ensure perfect JSON formatting.`
+
+    return systemPrompt
+  }
+
+  private buildGenericPrompt(request: QuestionGenerationRequest): string {
     const count = request.count || 1
     const questionTypeInstructions = this.getQuestionTypeInstructions(
       request.type
@@ -190,7 +321,7 @@ FORMAT YOUR RESPONSE AS VALID JSON:
     "content": "The full question text",
     "type": "${request.type}",
     "difficulty": "${request.difficulty}",
-    ${request.type === 'multiple_choice' ? '"options": ["Option A", "Option B", "Option C", "Option D"],' : ''}
+    ${request.type === 'multiple_choice' ? '"options": [{"id": "1", "text": "Option A", "isCorrect": false}, {"id": "2", "text": "Option B", "isCorrect": true}, {"id": "3", "text": "Option C", "isCorrect": false}, {"id": "4", "text": "Option D", "isCorrect": false}],' : request.type === 'true_false' ? '"options": null,' : ''}
     "correct_answer": ${this.getCorrectAnswerFormat(request.type)},
     "explanation": "Detailed explanation of why this is correct",
     "points": ${this.getDefaultPoints(request.difficulty)},
@@ -225,9 +356,9 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
   private getCorrectAnswerFormat(type: QuestionType): string {
     switch (type) {
       case 'multiple_choice':
-        return '"A"' // Index or letter of correct option
+        return '["1"]' // Array of correct option IDs
       case 'true_false':
-        return 'true' // Boolean value
+        return '"true"' // String value "true" or "false"
       case 'essay':
         return '{"rubric": "Scoring criteria", "sample_answer": "Example response"}'
       case 'fill_blank':
@@ -279,46 +410,155 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
         throw new Error('AI response is not an array of questions')
       }
 
-      return parsedQuestions.map((q: ParsedQuestionFromAI, index: number) => ({
-        title: q.title || `Generated Question ${index + 1}`,
-        content: q.content,
-        type: request.type,
-        difficulty: request.difficulty,
-        options: q.options,
-        correct_answer: q.correct_answer,
-        explanation: q.explanation || 'No explanation provided',
-        points: q.points || this.getDefaultPoints(request.difficulty),
-        category: q.category || request.subject || request.topic,
-        tags: Array.isArray(q.tags) ? q.tags : [request.topic],
-        ai_metadata: {
-          ...aiMetadata,
-          raw_content: content,
-        },
-      }))
+      return parsedQuestions.map((q: ParsedQuestionFromAI, index: number) => {
+        // Validate required fields for supported question types
+        this.validateQuestionData(q, request.type)
+
+        return {
+          title: q.title || `Generated Question ${index + 1}`,
+          content: q.content,
+          type: request.type,
+          difficulty: request.difficulty,
+          options: q.options,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation || 'No explanation provided',
+          points: q.points || this.getDefaultPoints(request.difficulty),
+          category: q.category || request.subject || request.topic,
+          tags: Array.isArray(q.tags) ? q.tags : [request.topic],
+          ai_metadata: {
+            ...aiMetadata,
+            raw_content: content,
+          },
+        }
+      })
     } catch (error) {
       console.error('Failed to parse AI response:', error)
       console.log('Raw content:', content)
 
-      // Fallback: create a basic question if parsing fails
-      return [
-        {
-          title: `Generated ${request.type} Question`,
-          content: content.slice(0, 500) + (content.length > 500 ? '...' : ''),
-          type: request.type,
-          difficulty: request.difficulty,
-          correct_answer: 'Unable to parse',
-          explanation: 'AI response could not be parsed properly',
-          points: this.getDefaultPoints(request.difficulty),
-          category: request.subject || request.topic,
-          tags: [request.topic, 'ai-parse-error'],
-          ai_metadata: {
-            ...aiMetadata,
-            parse_error: true,
-            raw_content: content,
-          },
-        },
-      ]
+      // Enhanced fallback: try to create meaningful fallback questions
+      return this.createFallbackQuestions(content, request, aiMetadata, error)
     }
+  }
+
+  private validateQuestionData(
+    question: ParsedQuestionFromAI,
+    type: QuestionType
+  ): void {
+    if (!question.content) {
+      throw new Error('Question content is required')
+    }
+
+    if (type === 'multiple_choice') {
+      if (
+        !question.options ||
+        !Array.isArray(question.options) ||
+        question.options.length !== 4
+      ) {
+        throw new Error('Multiple choice questions must have exactly 4 options')
+      }
+
+      // Validate options format: array of objects with id, text, isCorrect
+      for (const option of question.options) {
+        if (
+          typeof option !== 'object' ||
+          !option.id ||
+          !option.text ||
+          typeof option.isCorrect !== 'boolean'
+        ) {
+          throw new Error(
+            'Multiple choice options must be objects with id, text, and isCorrect properties'
+          )
+        }
+      }
+
+      // Validate correct_answer is array of strings
+      if (
+        !Array.isArray(question.correct_answer) ||
+        question.correct_answer.length === 0
+      ) {
+        throw new Error(
+          'Multiple choice correct_answer must be an array of option IDs'
+        )
+      }
+
+      // Verify at least one option is marked as correct
+      const hasCorrectOption = question.options.some(
+        (option) => option.isCorrect
+      )
+      if (!hasCorrectOption) {
+        throw new Error('At least one option must be marked as correct')
+      }
+    }
+
+    if (type === 'true_false') {
+      if (
+        typeof question.correct_answer !== 'string' ||
+        !['true', 'false'].includes(question.correct_answer)
+      ) {
+        throw new Error(
+          'True/false questions must have correct_answer as "true" or "false" string'
+        )
+      }
+    }
+  }
+
+  private createFallbackQuestions(
+    content: string,
+    request: QuestionGenerationRequest,
+    aiMetadata: {
+      model: string
+      prompt: string
+      generated_at: string
+      tokens_used?: number
+    },
+    error: unknown
+  ): GeneratedQuestion[] {
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown parsing error'
+
+    // Try to extract any usable content
+    const lines = content.split('\n').filter((line) => line.trim())
+    const questionContent =
+      lines.find((line) => line.includes('?')) ||
+      lines.find((line) => line.length > 20) ||
+      'Unable to generate question due to parsing error'
+
+    const fallbackQuestion: GeneratedQuestion = {
+      title: `Generated ${request.type.replace('_', ' ')} Question`,
+      content: questionContent.slice(0, 200),
+      type: request.type,
+      difficulty: request.difficulty,
+      correct_answer:
+        request.type === 'true_false'
+          ? 'true'
+          : request.type === 'multiple_choice'
+            ? ['1']
+            : 'Unable to parse',
+      explanation: `AI response parsing failed: ${errorMessage}`,
+      points: this.getDefaultPoints(request.difficulty),
+      category: request.subject || request.topic,
+      tags: [request.topic, 'ai-parse-error'],
+      ai_metadata: {
+        ...aiMetadata,
+        parse_error: true,
+        error_message: errorMessage,
+        raw_content: content,
+      },
+    }
+
+    // Add fallback options for multiple choice or null for true/false
+    if (request.type === 'multiple_choice') {
+      fallbackQuestion.options = [
+        { id: '1', text: 'Unable to parse option A', isCorrect: true },
+        { id: '2', text: 'Unable to parse option B', isCorrect: false },
+        { id: '3', text: 'Unable to parse option C', isCorrect: false },
+        { id: '4', text: 'Unable to parse option D', isCorrect: false },
+      ]
+    } else if (request.type === 'true_false') {
+      fallbackQuestion.options = null
+    }
+
+    return [fallbackQuestion]
   }
 
   async generateQuestionSet(
@@ -368,6 +608,212 @@ Generate exactly ${count} question(s). Ensure the JSON is valid and properly for
     }
 
     return results
+  }
+
+  /**
+   * Generate a complete exam with mixed question types and difficulties
+   */
+  async generateCompleteExam(request: {
+    topic: string
+    subject?: string
+    totalQuestions: number
+    duration?: number
+    questionTypes: {
+      multiple_choice: number // percentage
+      true_false: number // percentage
+    }
+    difficulty: {
+      easy: number // percentage
+      medium: number // percentage
+      hard: number // percentage
+    }
+    context?: string
+    learningObjectives?: string[]
+  }): Promise<{
+    success: boolean
+    examData?: {
+      title: string
+      description: string
+      duration: number
+      questions: GeneratedQuestion[]
+    }
+    metadata?: {
+      model_used: string
+      generation_time: number
+      total_questions: number
+    }
+    error?: string
+  }> {
+    const startTime = Date.now()
+
+    try {
+      // Calculate question counts for each type and difficulty
+      const mcCount = Math.round(
+        (request.totalQuestions * request.questionTypes.multiple_choice) / 100
+      )
+      const tfCount = request.totalQuestions - mcCount
+
+      const _easyCount = Math.round(
+        (request.totalQuestions * request.difficulty.easy) / 100
+      )
+      const _mediumCount = Math.round(
+        (request.totalQuestions * request.difficulty.medium) / 100
+      )
+      const _hardCount = request.totalQuestions - _easyCount - _mediumCount
+
+      // Generate questions by type and difficulty
+      const allQuestions: GeneratedQuestion[] = []
+      let _totalTokens = 0
+
+      // Multiple Choice questions by difficulty
+      if (mcCount > 0) {
+        const mcEasy = Math.round((mcCount * request.difficulty.easy) / 100)
+        const mcMedium = Math.round((mcCount * request.difficulty.medium) / 100)
+        const mcHard = mcCount - mcEasy - mcMedium
+
+        for (const [diff, count] of [
+          ['easy', mcEasy],
+          ['medium', mcMedium],
+          ['hard', mcHard],
+        ] as [QuestionDifficulty, number][]) {
+          if (count > 0) {
+            const result = await this.generateQuestions({
+              topic: request.topic,
+              subject: request.subject,
+              type: 'multiple_choice',
+              difficulty: diff,
+              count,
+              context: request.context,
+              learningObjectives: request.learningObjectives,
+            })
+
+            if (result.success) {
+              allQuestions.push(...result.questions)
+              _totalTokens += result.metadata.total_tokens || 0
+            }
+          }
+        }
+      }
+
+      // True/False questions by difficulty
+      if (tfCount > 0) {
+        const tfEasy = Math.round((tfCount * request.difficulty.easy) / 100)
+        const tfMedium = Math.round((tfCount * request.difficulty.medium) / 100)
+        const tfHard = tfCount - tfEasy - tfMedium
+
+        for (const [diff, count] of [
+          ['easy', tfEasy],
+          ['medium', tfMedium],
+          ['hard', tfHard],
+        ] as [QuestionDifficulty, number][]) {
+          if (count > 0) {
+            const result = await this.generateQuestions({
+              topic: request.topic,
+              subject: request.subject,
+              type: 'true_false',
+              difficulty: diff,
+              count,
+              context: request.context,
+              learningObjectives: request.learningObjectives,
+            })
+
+            if (result.success) {
+              allQuestions.push(...result.questions)
+              _totalTokens += result.metadata.total_tokens || 0
+            }
+          }
+        }
+      }
+
+      // Shuffle questions for variety
+      const shuffledQuestions = this.shuffleArray(allQuestions)
+
+      // Generate exam metadata
+      const examTitle = `${request.topic} Exam${request.subject ? ` - ${request.subject}` : ''}`
+      const examDescription = this.generateExamDescription(request)
+
+      return {
+        success: true,
+        examData: {
+          title: examTitle,
+          description: examDescription,
+          duration:
+            request.duration ||
+            this.estimateExamDuration(
+              request.totalQuestions,
+              request.questionTypes
+            ),
+          questions: shuffledQuestions,
+        },
+        metadata: {
+          model_used: 'gpt-4o-mini',
+          generation_time: Date.now() - startTime,
+          total_questions: shuffledQuestions.length,
+        },
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+        metadata: {
+          model_used: 'gpt-4o-mini',
+          generation_time: Date.now() - startTime,
+          total_questions: 0,
+        },
+      }
+    }
+  }
+
+  private shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }
+
+  private generateExamDescription(request: {
+    topic: string
+    subject?: string
+    totalQuestions: number
+    context?: string
+    learningObjectives?: string[]
+  }): string {
+    let description = `This exam covers ${request.topic}`
+
+    if (request.subject) {
+      description += ` in ${request.subject}`
+    }
+
+    description += `. The exam contains ${request.totalQuestions} questions designed to assess your understanding of the material.`
+
+    if (request.context) {
+      description += ` ${request.context}`
+    }
+
+    if (request.learningObjectives && request.learningObjectives.length > 0) {
+      description += ` Learning objectives include: ${request.learningObjectives.join(', ')}.`
+    }
+
+    return description
+  }
+
+  private estimateExamDuration(
+    totalQuestions: number,
+    questionTypes: { multiple_choice: number; true_false: number }
+  ): number {
+    // Estimate time per question type (in minutes)
+    const mcTime =
+      ((totalQuestions * questionTypes.multiple_choice) / 100) * 1.5
+    const tfTime = ((totalQuestions * questionTypes.true_false) / 100) * 0.5
+
+    // Add buffer time (20% extra)
+    const totalTime = Math.ceil((mcTime + tfTime) * 1.2)
+
+    // Minimum 10 minutes, maximum 480 minutes (8 hours)
+    return Math.max(10, Math.min(480, totalTime))
   }
 }
 

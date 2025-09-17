@@ -168,7 +168,7 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
                 Generate Questions with AI
               </h2>
               <p className="text-sm text-gray-500">
-                Create questions using OpenRouter GPT-4o-mini
+                Create Multiple Choice and True/False questions using AI
               </p>
             </div>
           </div>
@@ -283,10 +283,20 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
                 >
                   <option value="multiple_choice">Multiple Choice</option>
                   <option value="true_false">True/False</option>
-                  <option value="essay">Essay</option>
-                  <option value="fill_blank">Fill in the Blank</option>
-                  <option value="matching">Matching</option>
+                  <option value="essay" disabled>
+                    Essay (Coming Soon)
+                  </option>
+                  <option value="fill_blank" disabled>
+                    Fill in the Blank (Coming Soon)
+                  </option>
+                  <option value="matching" disabled>
+                    Matching (Coming Soon)
+                  </option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Only Multiple Choice and True/False questions are currently
+                  supported
+                </p>
               </div>
 
               <div>
@@ -348,11 +358,14 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
               />
             </div>
 
-            {/* Learning Objectives */}
+            {/* Learning Objectives - Simplified for supported question types */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Learning Objectives (Optional)
               </label>
+              <p className="text-sm text-gray-500 mb-3">
+                Add specific learning goals that questions should address
+              </p>
 
               {/* Add Objective Input */}
               <div className="flex gap-2 mb-3">
@@ -364,7 +377,7 @@ export const GenerateQuestionModal: React.FC<GenerateQuestionModalProps> = ({
                     e.key === 'Enter' &&
                     (e.preventDefault(), addLearningObjective())
                   }
-                  placeholder="Enter a learning objective..."
+                  placeholder="e.g., Understand photosynthesis process"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   disabled={isGenerating}
                 />
