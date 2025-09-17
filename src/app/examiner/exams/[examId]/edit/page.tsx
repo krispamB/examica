@@ -4,9 +4,9 @@ import { createExamService } from '@/lib/exams/service'
 import ExamBuilder from '@/components/examiner/ExamBuilder'
 
 interface EditExamPageProps {
-  params: {
+  params: Promise<{
     examId: string
-  }
+  }>
 }
 
 export default async function EditExamPage({ params }: EditExamPageProps) {

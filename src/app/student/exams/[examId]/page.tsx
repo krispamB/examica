@@ -4,9 +4,9 @@ import { createExamService } from '@/lib/exams/service'
 import ExamClient from './ExamClient'
 
 interface ExamPageProps {
-  params: {
+  params: Promise<{
     examId: string
-  }
+  }>
 }
 
 export default async function ExamPage({ params }: ExamPageProps) {
