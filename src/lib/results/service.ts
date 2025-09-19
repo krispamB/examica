@@ -387,7 +387,9 @@ export class ResultsService {
           submitted_at: session.completed_at || new Date().toISOString(),
           requires_manual_grading: this.hasEssayQuestions(
             (session.question_responses || []).map((r) => ({
-              questions: r.questions ? { type: r.questions.type } : undefined,
+              questions: questionsMap.get(r.question_id)
+                ? { type: (questionsMap.get(r.question_id) as any).type }
+                : undefined,
             }))
           ),
         })
