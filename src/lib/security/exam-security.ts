@@ -6,6 +6,7 @@
  */
 
 import { createHash } from 'crypto'
+import type { Json } from '@/types/database.types'
 
 export interface SecurityEvent {
   type:
@@ -18,7 +19,7 @@ export interface SecurityEvent {
   sessionId: string
   userId: string
   timestamp: number
-  details: Record<string, unknown>
+  details: Json
   severity: 'low' | 'medium' | 'high' | 'critical'
   ip?: string
   userAgent?: string
@@ -166,26 +167,29 @@ class ExamSecurityService {
   validateSession(
     _sessionId: string,
     userId: string,
-    metadata: Record<string, unknown>
+    metadata: Json
   ): SessionValidation {
     const issues: string[] = []
     const recommendations: string[] = []
     let riskScore = 0
 
     // Check for required metadata
-    if (!metadata.userAgent) {
+    if (!(metadata as any).userAgent) {
       issues.push('Missing user agent information')
       riskScore += 10
     }
 
-    if (!metadata.timestamp) {
+    if (!(metadata as any).timestamp) {
       issues.push('Missing timestamp information')
       riskScore += 5
     }
 
     // Check for suspicious timing patterns
-    if (metadata.responseTime && typeof metadata.responseTime === 'number') {
-      if (metadata.responseTime < 1000) {
+    if (
+      (metadata as any).responseTime &&
+      typeof (metadata as any).responseTime === 'number'
+    ) {
+      if ((metadata as any).responseTime < 1000) {
         // Less than 1 second responses
         issues.push('Unusually fast response times detected')
         riskScore += 15
@@ -203,11 +207,11 @@ class ExamSecurityService {
 
     // Check session duration
     if (
-      metadata.sessionDuration &&
-      typeof metadata.sessionDuration === 'number'
+      (metadata as any).sessionDuration &&
+      typeof (metadata as any).sessionDuration === 'number'
     ) {
       const maxDuration = 8 * 60 * 60 * 1000 // 8 hours
-      if (metadata.sessionDuration > maxDuration) {
+      if ((metadata as any).sessionDuration > maxDuration) {
         issues.push('Session duration exceeds maximum allowed time')
         riskScore += 25
         recommendations.push('Review session timeout policies')
@@ -215,8 +219,11 @@ class ExamSecurityService {
     }
 
     // Check for suspicious patterns in answers
-    if (metadata.answerPattern && Array.isArray(metadata.answerPattern)) {
-      const pattern = metadata.answerPattern as string[]
+    if (
+      (metadata as any).answerPattern &&
+      Array.isArray((metadata as any).answerPattern)
+    ) {
+      const pattern = (metadata as any).answerPattern as string[]
       if (this.detectSuspiciousPattern(pattern)) {
         issues.push('Suspicious answer pattern detected')
         riskScore += 30
@@ -297,7 +304,7 @@ class ExamSecurityService {
     sessionId: string,
     userId: string,
     examId: string,
-    metadata: Record<string, unknown>
+    metadata: Json
   ): string {
     const tokenData = {
       sessionId,

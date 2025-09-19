@@ -5,6 +5,8 @@
  * for the exam system optimization and monitoring.
  */
 
+import type { Json } from '@/types/database.types'
+
 export interface PerformanceMetric {
   name: string
   value: number
@@ -12,7 +14,7 @@ export interface PerformanceMetric {
   timestamp: number
   sessionId?: string
   userId?: string
-  metadata?: Record<string, unknown>
+  metadata?: Json
 }
 
 export interface SystemHealth {
@@ -35,7 +37,7 @@ export interface UserBehaviorMetric {
   event: string
   timestamp: number
   duration?: number
-  metadata: Record<string, unknown>
+  metadata: Json
 }
 
 export interface ExamAnalytics {
@@ -94,7 +96,7 @@ class ExamMetricsService {
     unit: string = 'ms',
     sessionId?: string,
     userId?: string,
-    metadata?: Record<string, unknown>
+    metadata?: Json
   ): void {
     const metric: PerformanceMetric = {
       name,
@@ -134,7 +136,7 @@ class ExamMetricsService {
     sessionId: string,
     event: string,
     duration?: number,
-    metadata: Record<string, unknown> = {}
+    metadata: Json = {}
   ): void {
     const behaviorMetric: UserBehaviorMetric = {
       userId,
@@ -164,12 +166,12 @@ class ExamMetricsService {
     userId: string,
     examId: string,
     event: 'start' | 'answer' | 'save' | 'sync' | 'complete' | 'error',
-    metadata: Record<string, unknown> = {}
+    metadata: Json = {}
   ): void {
-    const duration = metadata.duration as number | undefined
+    const duration = (metadata as any)?.duration as number | undefined
 
     this.recordUserBehavior(userId, sessionId, `exam_${event}`, duration, {
-      ...metadata,
+      ...(metadata as any),
       examId,
     })
 
@@ -350,7 +352,7 @@ class ExamMetricsService {
    */
   generateExamAnalytics(examId: string): ExamAnalytics {
     const examEvents = this.behaviorMetrics.filter(
-      (e) => e.metadata.examId === examId
+      (e) => (e.metadata as any)?.examId === examId
     )
 
     const _sessions = new Set(examEvents.map((e) => e.sessionId))
@@ -365,7 +367,7 @@ class ExamMetricsService {
 
     // Get performance metrics for this exam
     const examMetrics = this.metrics.filter(
-      (m) => m.metadata?.examId === examId
+      (m) => (m.metadata as any)?.examId === examId
     )
 
     const responseTimes = examMetrics
@@ -624,7 +626,9 @@ class ExamMetricsService {
     if (syncMetrics.length === 0) return 100
 
     const successfulSyncs = syncMetrics.filter(
-      (m) => m.metadata?.statusCode && (m.metadata.statusCode as number) < 400
+      (m) =>
+        (m.metadata as any)?.statusCode &&
+        ((m.metadata as any).statusCode as number) < 400
     ).length
 
     return Math.round((successfulSyncs / syncMetrics.length) * 10000) / 100

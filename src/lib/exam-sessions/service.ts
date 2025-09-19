@@ -41,7 +41,7 @@ export interface StartExamRequest {
 export interface SubmitResponseRequest {
   sessionId: string
   questionId: string
-  response: string | number | boolean | string[] | Record<string, unknown>
+  response: Json
   timeSpent?: number
 }
 
@@ -591,7 +591,7 @@ export class ExamSessionService {
    */
   async updateSessionMetadata(
     sessionId: string,
-    metadata: Record<string, unknown>
+    metadata: Json
   ): Promise<{
     success: boolean
     session?: ExamSession
