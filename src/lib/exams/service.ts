@@ -214,8 +214,7 @@ export class ExamService {
         question_count: exam.exam_questions?.length || 0,
         total_points: options.includeQuestions
           ? exam.exam_questions?.reduce(
-              (sum: number, eq) =>
-                sum + (eq.points || eq.questions?.points || 1),
+              (sum, eq) => sum + (eq.points || eq.questions?.points || 1),
               0
             ) || 0
           : undefined,
