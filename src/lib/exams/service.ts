@@ -20,6 +20,26 @@ export interface ExamWithQuestions extends Exam {
   total_points?: number
 }
 
+export interface ExamWithPartialQuestions extends Omit<Exam, 'exam_questions'> {
+  exam_questions:
+    | Array<{
+        id: string
+        order_index: number
+        points: number
+        required: boolean
+        questions: {
+          id: string
+          title: string
+          type: string
+          difficulty: string
+          points: number
+        }
+      }>
+    | Array<{ id: string }>
+  question_count?: number
+  total_points?: number
+}
+
 export interface ExamFilters {
   status?: 'draft' | 'active' | 'archived'
   createdBy?: string
@@ -140,7 +160,7 @@ export class ExamService {
     } = {}
   ): Promise<{
     success: boolean
-    exams?: ExamWithQuestions[]
+    exams?: ExamWithPartialQuestions[]
     totalCount?: number
     error?: string
   }> {
