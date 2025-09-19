@@ -209,17 +209,20 @@ export class ExamService {
       }
 
       // Enrich exams with question stats
-      const enrichedExams = (exams || []).map((exam) => ({
-        ...exam,
-        question_count: exam.exam_questions?.length || 0,
-        total_points: options.includeQuestions
-          ? exam.exam_questions?.reduce(
-              (sum: number, eq: any) =>
-                sum + (eq.points || eq.questions?.points || 1),
-              0
-            ) || 0
-          : undefined,
-      }))
+      const enrichedExams = (exams || []).map((exam) => {
+        let totalPoints = 0
+        if (options.includeQuestions && exam.exam_questions) {
+          for (const eq of exam.exam_questions) {
+            totalPoints += eq.points || eq.questions?.points || 1
+          }
+        }
+
+        return {
+          ...exam,
+          question_count: exam.exam_questions?.length || 0,
+          total_points: options.includeQuestions ? totalPoints : undefined,
+        }
+      })
 
       return {
         success: true,
