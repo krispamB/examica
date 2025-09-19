@@ -12,7 +12,7 @@ import {
   Eye,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
-import type { ExamWithQuestions } from '@/lib/exams/service'
+import type { ExamWithPartialQuestions } from '@/lib/exams/service'
 
 interface ExaminerDashboardContentProps {
   userId: string
@@ -26,7 +26,7 @@ interface DashboardStats {
   totalStudents: number
   totalAttempts: number
   averageScore: number
-  recentExams: ExamWithQuestions[]
+  recentExams: ExamWithPartialQuestions[]
 }
 
 const ExaminerDashboardContent: React.FC<ExaminerDashboardContentProps> = ({

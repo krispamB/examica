@@ -11,10 +11,10 @@ import {
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import FaceCaptureCamera from '@/components/common/FaceCaptureCamera'
-import type { ExamWithQuestions } from '@/lib/exams/service'
+import type { ExamWithPartialQuestions } from '@/lib/exams/service'
 
 interface ExamLandingProps {
-  exam: ExamWithQuestions
+  exam: ExamWithPartialQuestions
   onStartExam: (sessionId: string) => void
 }
 

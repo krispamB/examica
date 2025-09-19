@@ -41,7 +41,7 @@ export interface StartExamRequest {
 export interface SubmitResponseRequest {
   sessionId: string
   questionId: string
-  response: string | number | boolean | string[] | Record<string, unknown>
+  response: Json
   timeSpent?: number
 }
 
@@ -591,7 +591,7 @@ export class ExamSessionService {
    */
   async updateSessionMetadata(
     sessionId: string,
-    metadata: Record<string, unknown>
+    metadata: Json
   ): Promise<{
     success: boolean
     session?: ExamSession
@@ -688,7 +688,7 @@ export class ExamSessionService {
       let query = supabase.from('exam_sessions').select(
         `
           *,
-          exams(id, title, duration),
+          exams(*, exam_questions(id, order_index, points, required, questions(*))),
           user_profiles(first_name, last_name, email)
         `,
         { count: 'exact' }
@@ -1040,7 +1040,7 @@ export class ExamSessionService {
             session_id: request.sessionId,
             question_id: response.questionId,
             user_id: session.user_id,
-            response: response.response,
+            response: response.response as Json,
             is_correct: evaluation.isCorrect,
             points_earned: evaluation.pointsEarned,
             time_spent: null,
@@ -1209,7 +1209,7 @@ export class ExamSessionService {
             session_id: request.sessionId,
             question_id: response.questionId,
             user_id: session.user_id,
-            response: response.response,
+            response: response.response as Json,
             is_correct: evaluation.isCorrect,
             points_earned: evaluation.pointsEarned,
             updated_at: new Date().toISOString(),

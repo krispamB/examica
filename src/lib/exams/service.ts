@@ -20,6 +20,26 @@ export interface ExamWithQuestions extends Exam {
   total_points?: number
 }
 
+export interface ExamWithPartialQuestions extends Omit<Exam, 'exam_questions'> {
+  exam_questions:
+    | Array<{
+        id: string
+        order_index: number
+        points: number
+        required: boolean
+        questions: {
+          id: string
+          title: string
+          type: string
+          difficulty: string
+          points: number
+        }
+      }>
+    | Array<{ id: string }>
+  question_count?: number
+  total_points?: number
+}
+
 export interface ExamFilters {
   status?: 'draft' | 'active' | 'archived'
   createdBy?: string
@@ -66,7 +86,7 @@ export class ExamService {
     createdBy: string
   ): Promise<{
     success: boolean
-    exam?: ExamWithQuestions
+    exam?: ExamWithPartialQuestions
     error?: string
   }> {
     try {
@@ -140,7 +160,7 @@ export class ExamService {
     } = {}
   ): Promise<{
     success: boolean
-    exams?: ExamWithQuestions[]
+    exams?: ExamWithPartialQuestions[]
     totalCount?: number
     error?: string
   }> {
@@ -209,17 +229,26 @@ export class ExamService {
       }
 
       // Enrich exams with question stats
-      const enrichedExams = (exams || []).map((exam) => ({
-        ...exam,
-        question_count: exam.exam_questions?.length || 0,
-        total_points: options.includeQuestions
-          ? exam.exam_questions?.reduce(
-              (sum: number, eq) =>
-                sum + (eq.points || eq.questions?.points || 1),
-              0
-            ) || 0
-          : undefined,
-      }))
+      const enrichedExams = (exams || []).map((exam) => {
+        let totalPoints = 0
+        if (options.includeQuestions && exam.exam_questions) {
+          for (const eq of exam.exam_questions) {
+            // Check if this is the full object type with points property
+            if ('points' in eq) {
+              totalPoints += eq.points || eq.questions?.points || 1
+            } else {
+              // Fallback for minimal object type (just id)
+              totalPoints += 1
+            }
+          }
+        }
+
+        return {
+          ...exam,
+          question_count: exam.exam_questions?.length || 0,
+          total_points: options.includeQuestions ? totalPoints : undefined,
+        }
+      })
 
       return {
         success: true,
@@ -239,7 +268,7 @@ export class ExamService {
    */
   async getExam(id: string): Promise<{
     success: boolean
-    exam?: ExamWithQuestions
+    exam?: ExamWithPartialQuestions
     error?: string
   }> {
     try {

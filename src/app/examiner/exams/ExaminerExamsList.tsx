@@ -16,7 +16,7 @@ import {
   Pause,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
-import type { ExamWithQuestions } from '@/lib/exams/service'
+import type { ExamWithPartialQuestions } from '@/lib/exams/service'
 
 interface ExaminerExamsListProps {
   userId: string
@@ -27,7 +27,7 @@ const ExaminerExamsList: React.FC<ExaminerExamsListProps> = ({
   userId,
   userRole,
 }) => {
-  const [exams, setExams] = useState<ExamWithQuestions[]>([])
+  const [exams, setExams] = useState<ExamWithPartialQuestions[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedExam, setSelectedExam] = useState<string | null>(null)
