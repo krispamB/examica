@@ -192,7 +192,7 @@ export async function PATCH(request: NextRequest) {
     const results = await generator.generateQuestionSet(topic, specifications)
 
     // Aggregate all questions and results
-    const allQuestions: {
+    interface ApiGeneratedQuestion {
       type: string
       question: string
       options?: string[]
@@ -200,8 +200,11 @@ export async function PATCH(request: NextRequest) {
       explanation?: string
       points: number
       difficulty: string
-    }[] = []
-    const originalQuestions: any[] = []
+    }
+
+    const allQuestions: ApiGeneratedQuestion[] = []
+    const originalQuestions: import('@/lib/ai/question-generator').GeneratedQuestion[] =
+      []
     let totalGenerated = 0
     let totalSaved = 0
     const errors: string[] = []
@@ -209,15 +212,17 @@ export async function PATCH(request: NextRequest) {
     for (const result of results) {
       if (result.success) {
         originalQuestions.push(...result.questions)
-        const mappedQuestions = result.questions.map((q) => ({
-          type: q.type,
-          question: q.title,
-          options: q.options?.map((opt) => opt.text),
-          answer: String(q.correct_answer),
-          explanation: q.explanation,
-          points: q.points,
-          difficulty: q.difficulty,
-        }))
+        const mappedQuestions: ApiGeneratedQuestion[] = result.questions.map(
+          (q) => ({
+            type: q.type,
+            question: q.title,
+            options: q.options?.map((opt) => opt.text),
+            answer: String(q.correct_answer),
+            explanation: q.explanation,
+            points: q.points,
+            difficulty: q.difficulty,
+          })
+        )
         allQuestions.push(...mappedQuestions)
         totalGenerated += result.questions.length
       } else {

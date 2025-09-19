@@ -15,6 +15,13 @@ export type QuestionType =
   | 'matching'
 export type QuestionDifficulty = 'easy' | 'medium' | 'hard'
 
+interface OptionData {
+  id: string
+  text: string
+  isCorrect: boolean
+  [key: string]: unknown
+}
+
 export interface QuestionFormData {
   title: string
   content: string
@@ -22,8 +29,8 @@ export interface QuestionFormData {
   difficulty: QuestionDifficulty
   category: string
   tags: string[]
-  options: unknown
-  correct_answer: unknown
+  options: OptionData[] | null
+  correct_answer: string | string[] | boolean | null
   explanation: string
   points: number
 }
@@ -119,12 +126,13 @@ const QuestionCreationModal: React.FC<QuestionCreationModalProps> = ({
     if (!formData.content.trim()) return false
 
     if (formData.type === 'multiple_choice') {
-      const options = (formData.options as any[]) || []
+      const options = formData.options || []
       if (options.length < 2) return false
-      if (!options.some((opt) => opt.text.trim())) return false
+      if (!options.some((opt) => opt.text?.trim())) return false
       if (
         !formData.correct_answer ||
-        (formData.correct_answer as any[])?.length === 0
+        (Array.isArray(formData.correct_answer) &&
+          formData.correct_answer.length === 0)
       )
         return false
     }
@@ -269,7 +277,7 @@ const QuestionCreationModal: React.FC<QuestionCreationModalProps> = ({
                     onOptionsChange={(options, correctAnswer) =>
                       setFormData((prev) => ({
                         ...prev,
-                        options,
+                        options: options as OptionData[],
                         correct_answer: correctAnswer,
                       }))
                     }

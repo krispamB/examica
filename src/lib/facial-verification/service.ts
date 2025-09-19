@@ -83,7 +83,9 @@ export class FacialVerificationService {
       try {
         referenceImageBase64 = await urlToBase64(userProfile.face_image_url)
       } catch (error) {
-        console.error('Failed to load reference image:', error)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to load reference image:', error)
+        }
         return {
           success: false,
           similarity: 0,

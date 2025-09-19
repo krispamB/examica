@@ -1,6 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createClientClient } from '@/lib/supabase/client'
-import type { Tables, TablesInsert, TablesUpdate } from '@/types/database.types'
+import type {
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+  Json,
+} from '@/types/database.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type ExamSession = Tables<'exam_sessions'>
@@ -330,7 +335,7 @@ export class ExamSessionService {
           .from('question_responses')
           .update({
             user_id: session.user_id,
-            response: request.response,
+            response: request.response as Json,
             is_correct: evaluation.isCorrect,
             points_earned: evaluation.pointsEarned,
             time_spent: request.timeSpent || null,
@@ -352,7 +357,7 @@ export class ExamSessionService {
             session_id: request.sessionId,
             question_id: request.questionId,
             user_id: session.user_id,
-            response: request.response,
+            response: request.response as Json,
             is_correct: evaluation.isCorrect,
             points_earned: evaluation.pointsEarned,
             time_spent: request.timeSpent || null,
