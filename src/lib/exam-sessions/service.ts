@@ -688,7 +688,7 @@ export class ExamSessionService {
       let query = supabase.from('exam_sessions').select(
         `
           *,
-          exams(id, title, duration),
+          exams(*, exam_questions(id, order_index, points, required, questions(*))),
           user_profiles(first_name, last_name, email)
         `,
         { count: 'exact' }
