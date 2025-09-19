@@ -386,11 +386,9 @@ export class ResultsService {
           time_spent: timeSpent,
           submitted_at: session.completed_at || new Date().toISOString(),
           requires_manual_grading: this.hasEssayQuestions(
-            (session.question_responses || []).map(
-              (r: { questions?: { type?: string } }) => ({
-                questions: r.questions ? { type: r.questions.type } : undefined,
-              })
-            )
+            (session.question_responses || []).map((r) => ({
+              questions: r.questions ? { type: r.questions.type } : undefined,
+            }))
           ),
         })
         .select()
