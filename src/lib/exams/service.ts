@@ -86,7 +86,7 @@ export class ExamService {
     createdBy: string
   ): Promise<{
     success: boolean
-    exam?: ExamWithQuestions
+    exam?: ExamWithPartialQuestions
     error?: string
   }> {
     try {
@@ -268,7 +268,7 @@ export class ExamService {
    */
   async getExam(id: string): Promise<{
     success: boolean
-    exam?: ExamWithQuestions
+    exam?: ExamWithPartialQuestions
     error?: string
   }> {
     try {

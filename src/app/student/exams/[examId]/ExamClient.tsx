@@ -4,11 +4,11 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import ExamLanding from '@/components/student/ExamLanding'
 import ExamSession from '@/components/student/ExamSession'
-import type { ExamWithQuestions } from '@/lib/exams/service'
+import type { ExamWithPartialQuestions } from '@/lib/exams/service'
 import type { ExamSessionWithDetails } from '@/lib/exam-sessions/service'
 
 interface ExamClientProps {
-  exam: ExamWithQuestions
+  exam: ExamWithPartialQuestions
 }
 
 const ExamClient: React.FC<ExamClientProps> = ({ exam }) => {

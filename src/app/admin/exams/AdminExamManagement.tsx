@@ -15,7 +15,7 @@ import {
   UserCheck,
 } from 'lucide-react'
 import Button from '@/components/ui/Button'
-import type { ExamWithQuestions } from '@/lib/exams/service'
+import type { ExamWithPartialQuestions } from '@/lib/exams/service'
 
 interface AdminExamManagementProps {
   userId: string
@@ -31,7 +31,7 @@ interface ExamStats {
 }
 
 const AdminExamManagement: React.FC<AdminExamManagementProps> = () => {
-  const [exams, setExams] = useState<ExamWithQuestions[]>([])
+  const [exams, setExams] = useState<ExamWithPartialQuestions[]>([])
   const [stats, setStats] = useState<ExamStats>({
     totalExams: 0,
     activeExams: 0,
