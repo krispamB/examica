@@ -142,7 +142,7 @@ export class ResultsService {
         `
         )
         .eq('id', sessionId)
-        .eq('status', 'completed')
+        .in('status', ['grading', 'completed'])
         .single()
 
       if (sessionError || !session) {
@@ -152,7 +152,7 @@ export class ResultsService {
         )
         return {
           success: false,
-          error: 'Session not found or not completed',
+          error: 'Session not found or not in grading/completed status',
         }
       }
 
