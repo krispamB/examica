@@ -249,7 +249,9 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
                     <div className="flex items-center gap-4 text-sm text-secondary">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-4 h-4" />
-                        {new Date(result.submitted_at).toLocaleDateString()}
+                        {new Date(
+                          result.submitted_at || result.created_at || new Date()
+                        ).toLocaleDateString()}
                       </div>
                       <div className="flex items-center gap-1">
                         <Clock className="w-4 h-4" />
@@ -349,7 +351,11 @@ const ExamResultsHistory: React.FC<ExamResultsHistoryProps> = ({
                   <div>
                     <span className="text-secondary">Completed:</span>
                     <div className="text-foreground">
-                      {new Date(selectedResult.submitted_at).toLocaleString()}
+                      {new Date(
+                        selectedResult.submitted_at ||
+                          selectedResult.created_at ||
+                          new Date()
+                      ).toLocaleString()}
                     </div>
                   </div>
                   <div>

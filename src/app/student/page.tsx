@@ -3,9 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Database } from '@/types/database.types'
-
-type ExamResult = Database['public']['Tables']['exam_results']['Row']
 
 interface DashboardStats {
   availableExams: number
@@ -110,7 +107,7 @@ export default function StudentDashboard() {
           examTitle:
             (result.exams as { title: string })?.title || 'Unknown Exam',
           date: new Date(
-            result.completed_at || result.created_at
+            result.completed_at || result.created_at || new Date()
           ).toLocaleDateString(),
           score: result.percentage_score || undefined,
         })
@@ -124,7 +121,7 @@ export default function StudentDashboard() {
             examTitle:
               (session.exams as { title: string })?.title || 'Unknown Exam',
             date: new Date(
-              session.started_at || session.created_at
+              session.started_at || session.created_at || new Date()
             ).toLocaleDateString(),
           })
         }

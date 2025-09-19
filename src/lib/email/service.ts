@@ -34,9 +34,11 @@ function getEmailProviderType(): EmailProviderType {
 
   // Validate explicit provider type
   if (!['resend', 'smtp', 'ses', 'none'].includes(providerType)) {
-    console.warn(
-      `Invalid EMAIL_PROVIDER: ${providerType}, falling back to 'none'`
-    )
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        `Invalid EMAIL_PROVIDER: ${providerType}, falling back to 'none'`
+      )
+    }
     return 'none'
   }
 
@@ -50,7 +52,9 @@ async function getEmailProvider(): Promise<EmailProvider> {
 
   const providerType = getEmailProviderType()
 
-  console.log(`Initializing email provider: ${providerType}`)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`Initializing email provider: ${providerType}`)
+  }
 
   switch (providerType) {
     case 'resend':
@@ -70,13 +74,17 @@ async function getEmailProvider(): Promise<EmailProvider> {
 
   // Log provider status
   if (emailProvider.isConfigured()) {
-    console.log(
-      `Email provider '${emailProvider.getProviderName()}' initialized successfully`
-    )
+    if (process.env.NODE_ENV === 'development') {
+      console.log(
+        `Email provider '${emailProvider.getProviderName()}' initialized successfully`
+      )
+    }
   } else {
-    console.warn(
-      `Email provider '${emailProvider.getProviderName()}' failed to initialize, falling back to no-op`
-    )
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        `Email provider '${emailProvider.getProviderName()}' failed to initialize, falling back to no-op`
+      )
+    }
     emailProvider = new NoOpProvider()
   }
 
