@@ -213,7 +213,13 @@ export class ExamService {
         let totalPoints = 0
         if (options.includeQuestions && exam.exam_questions) {
           for (const eq of exam.exam_questions) {
-            totalPoints += eq.points || eq.questions?.points || 1
+            // Check if this is the full object type with points property
+            if ('points' in eq) {
+              totalPoints += eq.points || eq.questions?.points || 1
+            } else {
+              // Fallback for minimal object type (just id)
+              totalPoints += 1
+            }
           }
         }
 
