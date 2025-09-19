@@ -153,9 +153,9 @@ const AcademicIntegritySection: React.FC<AcademicIntegritySectionProps> = ({
 
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-white">Dr. Sarah Johnson</p>
+                  <p className="font-semibold text-white">Dr. Godwin Tomas</p>
                   <p className="text-gray-400 text-sm">
-                    Vice-Chancellor, Academic Affairs
+                    HOD, Computer Science Department
                   </p>
                 </div>
                 <div className="flex space-x-1">
