@@ -431,11 +431,11 @@ export class ExamSessionService {
         }
       }
 
-      // Now update the session to completed
-      const { data: session, error } = await supabase
+      // First, update the session to grading status for result calculation
+      const { data: gradingSession, error: gradingError } = await supabase
         .from('exam_sessions')
         .update({
-          status: 'completed',
+          status: 'grading',
           completed_at: new Date().toISOString(),
         })
         .eq('id', sessionId)
@@ -443,11 +443,12 @@ export class ExamSessionService {
         .select()
         .single()
 
-      if (error) {
-        throw new Error(error.message)
+      if (gradingError) {
+        throw new Error(gradingError.message)
       }
 
-      // Automatically calculate exam results after completion
+      // Automatically calculate exam results while in grading status
+      let finalSession = gradingSession
       try {
         console.log(
           `Starting automatic result calculation for session ${sessionId}`
@@ -486,10 +487,33 @@ export class ExamSessionService {
               percentageScore: resultCalculation.result?.percentage_score,
             }
           )
+
+          // Now update session to completed status
+          const { data: completedSession, error: completedError } =
+            await supabase
+              .from('exam_sessions')
+              .update({ status: 'completed' })
+              .eq('id', sessionId)
+              .eq('status', 'grading')
+              .select()
+              .single()
+
+          if (completedError) {
+            console.error(
+              `Failed to update session to completed status: ${completedError.message}`
+            )
+          } else {
+            finalSession = completedSession
+          }
         } else {
           console.error(
             `Failed to calculate exam result for session ${sessionId}:`,
             resultCalculation.error
+          )
+
+          // Keep session in grading status if result calculation failed
+          console.warn(
+            `Session ${sessionId} remains in grading status due to calculation failure`
           )
         }
       } catch (resultError) {
@@ -498,11 +522,14 @@ export class ExamSessionService {
           'Failed to calculate exam result automatically:',
           resultError
         )
+        console.warn(
+          `Session ${sessionId} remains in grading status due to error`
+        )
       }
 
       return {
         success: true,
-        session,
+        session: finalSession,
       }
     } catch (error) {
       return {
