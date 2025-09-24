@@ -153,7 +153,7 @@ const AcademicIntegritySection: React.FC<AcademicIntegritySectionProps> = ({
 
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-white">Dr. Godwin Tomas</p>
+                  <p className="font-semibold text-white">Dr. Godwin Thomas</p>
                   <p className="text-gray-400 text-sm">
                     HOD, Computer Science Department
                   </p>
