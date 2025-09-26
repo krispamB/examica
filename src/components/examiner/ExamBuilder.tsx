@@ -22,6 +22,7 @@ import QuestionCreationModal, {
 } from './QuestionCreationModal'
 import ExamAIGeneratorModal from './ExamAIGeneratorModal'
 import GenerateQuestionModal from './GenerateQuestionModal'
+import QuestionPreviewModal from './QuestionPreviewModal'
 
 interface ExamBuilderProps {
   examId?: string // For editing existing exams
@@ -63,6 +64,8 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const [showQuestionCreator, setShowQuestionCreator] = useState(false)
   const [showExamAIGenerator, setShowExamAIGenerator] = useState(false)
   const [showQuestionAIGenerator, setShowQuestionAIGenerator] = useState(false)
+  const [showQuestionPreview, setShowQuestionPreview] = useState(false)
+  const [previewQuestion, setPreviewQuestion] = useState<Question | null>(null)
 
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -319,6 +322,11 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
   const handleQuestionsGenerated = () => {
     setShowQuestionAIGenerator(false)
     // Optionally refresh question browser or show success message
+  }
+
+  const handlePreviewQuestion = (question: Question) => {
+    setPreviewQuestion(question)
+    setShowQuestionPreview(true)
   }
 
   const getQuestionTypeIcon = (type: string) => {
@@ -628,12 +636,21 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
-                      <button className="p-1 text-gray-400 hover:text-gray-600">
+                      <button
+                        onClick={() =>
+                          examQuestion.question &&
+                          handlePreviewQuestion(examQuestion.question)
+                        }
+                        className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Preview question"
+                        disabled={!examQuestion.question}
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => removeQuestion(index)}
                         className="p-1 text-gray-400 hover:text-red-600"
+                        title="Remove question"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -679,6 +696,13 @@ export const ExamBuilder: React.FC<ExamBuilderProps> = ({
         isOpen={showQuestionAIGenerator}
         onClose={() => setShowQuestionAIGenerator(false)}
         onQuestionsGenerated={handleQuestionsGenerated}
+      />
+
+      {/* Question Preview Modal */}
+      <QuestionPreviewModal
+        isOpen={showQuestionPreview}
+        onClose={() => setShowQuestionPreview(false)}
+        question={previewQuestion}
       />
     </div>
   )
